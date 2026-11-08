@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { PanelRight } from 'lucide-react';
+import { PanelLeft, PanelRight } from 'lucide-react';
 import Sidebar from './components/Sidebar.jsx';
 import Welcome from './components/Welcome.jsx';
 import Thread from './components/Thread.jsx';
@@ -47,8 +47,9 @@ export default function App() {
   const [draft, setDraft] = useState('');
   const [pendingCourse, setPendingCourse] = useState(null);
   const [prefs, setPrefs] = useState({ textScale: 1, contrast: false });
-  const [learning, setLearning] = useState(loadLearning); // learningPreferences
-  const [learningPanelOpen, setLearningPanelOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(true); // Left side panel
+  const [learning, setLearning] = useState(loadLearning); // learningPreferences panel
+  const [learningPanelOpen, setLearningPanelOpen] = useState(() => window.matchMedia('(min-width: 761px)').matches);
 
   useEffect(() => {
     try {
@@ -164,23 +165,33 @@ export default function App() {
   const course = store.courses.find((c) => c.id === (active ? active.courseId : pendingCourse));
 
   return (
-    <div className={`app ${learningPanelOpen ? '' : 'prefs-closed'}`}>
-      <Sidebar
-        store={store}
-        onNew={openNew}
-        onOpen={(id) => setStore((s) => ({ ...s, activeId: id }))}
-        onAddCourse={addCourse}
-        prefs={prefs}
-        setPrefs={setPrefs}
-      />
+    <div className={`app ${sidebarOpen ? '' : 'side-closed'} ${learningPanelOpen ? '' : 'prefs-closed'}`}>
+      <div className="side-wrap">
+        <Sidebar
+            store={store}
+            onNew={openNew}
+            onOpen={(id) => setStore((s) => ({ ...s, activeId: id }))}
+            onAddCourse={addCourse}
+            prefs={prefs}
+            setPrefs={setPrefs}
+            collapsed={!sidebarOpen}
+            onToggle={() => setSidebarOpen((o) => !o)}
+            />
+      </div>
+
       <main className="main">
         <header className="topbar">
+          {!sidebarOpen && (
+            <button className="icon-btn mobile-only" onClick={() => setSidebarOpen(true)} aria-label="Open sidebar">
+              <PanelLeft size={20} />
+            </button>
+          )}
           <span>ThinkingCap</span>
           {course && <span>/ {course.name}</span>}
           <span className="crumb">{active ? active.title : 'New session'}</span>
-        {!learningPanelOpen && (
-            <button className="icon-btn reopen" onClick={() => setLearningPanelOpen(true)} aria-label="Open learning preferences">
-              <PanelRight size={20} />
+          {!learningPanelOpen && (
+            <button className="icon-btn mobile-only reopen" onClick={() => setLearningPanelOpen(true)} aria-label="Open learning preferences">
+            <PanelRight size={20} />
             </button>
           )}
         </header>
@@ -203,8 +214,13 @@ export default function App() {
           <Welcome>{composer}</Welcome>
         )}
       </main>
-      <div className="prefs-wrap" aria-hidden={!learningPanelOpen}>
-        <LearningPreferences value={learning} onChange={setLearning} onToggle={() => setLearningPanelOpen(false)} />
+      <div className="prefs-wrap">
+        <LearningPreferences
+        value={learning}
+        onChange={setLearning}
+        collapsed={!learningPanelOpen}
+        onToggle={() => setLearningPanelOpen((o) => !o)}
+        />
       </div>
     </div>
   );

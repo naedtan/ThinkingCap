@@ -16,6 +16,7 @@ const LEVELS = {
   medium: "A balanced blend of explanations and occasional interactive activities.",
   high: "Frequent questions, exercises, and check-ins throughout the session.",
 };
+const LEVEL_BARS = { low: 1, medium: 2, high: 3 };
 
 const INTERACTION_TYPES = [
   { id: "guided", icon: HelpCircle, title: "Guided Questions", desc: "Open-ended questions to think through" },
@@ -29,8 +30,14 @@ const EXPLANATION_STYLES = [
   { id: "stepwise", icon: Layers, title: "Step-by-Step", desc: "Break each idea into smaller steps" },
 ];
 
-// Three ascending bars, drawn to match lucide's stroke style.
-function LevelsIcon({ size = 18 }) {
+// Bar icon for Interaction Level. `active` = how many bars are full strength
+// (3 for the heading, 1-3 for the collapsed rail's level buttons).
+function LevelsIcon({ size = 18, active = 3 }) {
+  const bars = [
+    { x: 6, y2: 15 },
+    { x: 12, y2: 10 },
+    { x: 18, y2: 4 },
+  ];
   return (
     <svg
       width={size}
@@ -43,19 +50,91 @@ function LevelsIcon({ size = 18 }) {
       strokeLinejoin="round"
       aria-hidden="true"
     >
-      <line x1="6" y1="20" x2="6" y2="15" />
-      <line x1="12" y1="20" x2="12" y2="10" />
-      <line x1="18" y1="20" x2="18" y2="4" />
+      {bars.map((b, i) => (
+        <line key={b.x} x1={b.x} y1="20" x2={b.x} y2={b.y2} opacity={i < active ? 1 : 0.25} />
+      ))}
     </svg>
   );
 }
 
-export default function LearningPreferences({ value, onChange, onToggle }) {
+// Space/Enter activate a card; preventDefault stops Space from scrolling the panel.
+const onActivate = (fn) => (e) => {
+  if (e.key === " " || e.key === "Enter") {
+    e.preventDefault();
+    fn();
+  }
+};
+
+export default function LearningPreferences({ value, onChange, collapsed, onToggle }) {
   const { level, types, style } = value;
 
   const pickInteractionLevel = (next) => onChange({ ...value, level: next });
   const selectInteractionType = (id) => onChange({ ...value, types: { ...types, [id]: !types[id] } });
   const pickExplanationStyle = (id) => onChange({ ...value, style: id });
+
+  if (collapsed) {
+    return (
+      <aside className="rail rail-right" aria-label="Learning preferences (collapsed)">
+        <button className="icon-btn has-tip" data-tip="Open preferences" onClick={onToggle} aria-label="Open preferences">
+          <PanelRight size={22} aria-hidden="true" />
+        </button>
+        <span className="rail-divider" aria-hidden="true" />
+
+        {/* Interaction level: 1, 2 or 3 filled bars */}
+        <div className="rail-group" role="radiogroup" aria-label="Interaction level">
+          {Object.keys(LEVELS).map((key) => {
+            const label = `${key[0].toUpperCase() + key.slice(1)} interaction`;
+            return (
+              <button
+                key={key}
+                role="radio"
+                aria-checked={level === key}
+                aria-label={label}
+                data-tip={label}
+                className={`rail-btn has-tip ${level === key ? "is-on" : ""}`}
+                onClick={() => pickInteractionLevel(key)}
+              >
+                <LevelsIcon size={18} active={LEVEL_BARS[key]} />
+              </button>
+            );
+          })}
+        </div>
+        <span className="rail-divider" aria-hidden="true" />
+
+        {/* Interaction types */}
+        {INTERACTION_TYPES.map(({ id, icon: Icon, title }) => (
+          <button
+            key={id}
+            className={`rail-btn has-tip ${types[id] ? "is-on" : ""}`}
+            aria-pressed={types[id]}
+            aria-label={title}
+            data-tip={`${title}: ${types[id] ? "on" : "off"}`}
+            onClick={() => selectInteractionType(id)}
+          >
+            <Icon size={18} aria-hidden="true" />
+          </button>
+        ))}
+        <span className="rail-divider" aria-hidden="true" />
+
+        {/* Explanation style */}
+        <div className="rail-group" role="radiogroup" aria-label="Explanation style">
+          {EXPLANATION_STYLES.map(({ id, icon: Icon, title }) => (
+            <button
+              key={id}
+              role="radio"
+              aria-checked={style === id}
+              aria-label={title}
+              data-tip={title}
+              className={`rail-btn has-tip ${style === id ? "is-on" : ""}`}
+              onClick={() => pickExplanationStyle(id)}
+            >
+              <Icon size={18} aria-hidden="true" />
+            </button>
+          ))}
+        </div>
+      </aside>
+    );
+  }
 
   return (
     <aside className="lp" aria-label="Learning preferences">
@@ -93,7 +172,7 @@ export default function LearningPreferences({ value, onChange, onToggle }) {
           <p className="lp-note">{LEVELS[level]}</p>
         </section>
 
-        {/* Interaction types */}
+        {/* Interaction types: the whole card is the switch */}
         <section className="lp-section">
           <h3 className="lp-heading">
             <Brain size={18} /> Interaction Types
@@ -102,19 +181,22 @@ export default function LearningPreferences({ value, onChange, onToggle }) {
 
           <div className="lp-stack">
             {INTERACTION_TYPES.map(({ id, icon: Icon, title, desc }) => (
-              <div className={`lp-card ${types[id] ? "is-selected" : ""}`} key={id}>
+              <div
+                className={`lp-card lp-card-clickable ${types[id] ? "is-selected" : ""}`}
+                key={id}
+                role="switch"
+                aria-checked={types[id]}
+                aria-label={title}
+                tabIndex={0}
+                onClick={() => selectInteractionType(id)}
+                onKeyDown={onActivate(() => selectInteractionType(id))}
+              >
                 <span className="lp-badge"><Icon size={18} /></span>
                 <div className="lp-card-text">
                   <strong>{title}</strong>
                   <span>{desc}</span>
                 </div>
-                <button
-                  role="switch"
-                  aria-checked={types[id]}
-                  aria-label={title}
-                  className={`lp-switch ${types[id] ? "is-on" : ""}`}
-                  onClick={() => selectInteractionType(id)}
-                />
+                <span className={`lp-switch ${types[id] ? "is-on" : ""}`} aria-hidden="true" />
               </div>
             ))}
           </div>
@@ -136,7 +218,7 @@ export default function LearningPreferences({ value, onChange, onToggle }) {
                 aria-checked={style === id}
                 tabIndex={0}
                 onClick={() => pickExplanationStyle(id)}
-                onKeyDown={(e) => (e.key === " " || e.key === "Enter") && pickExplanationStyle(id)}
+                onKeyDown={onActivate(() => pickExplanationStyle(id))}
               >
                 <span className="lp-badge"><Icon size={18} /></span>
                 <div className="lp-card-text">

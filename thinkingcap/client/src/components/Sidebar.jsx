@@ -1,4 +1,4 @@
-import { GraduationCap, Plus, Folder } from 'lucide-react';
+import { GraduationCap, Plus, Folder, PanelLeft, Settings } from 'lucide-react';
 
 function SessionList({ sessions, activeId, onOpen }) {
   return (
@@ -18,16 +18,37 @@ function SessionList({ sessions, activeId, onOpen }) {
   );
 }
 
-export default function Sidebar({ store, onNew, onOpen, onAddCourse, prefs, setPrefs }) {
+export default function Sidebar({ store, onNew, onOpen, onAddCourse, prefs, setPrefs, collapsed, onToggle }) {
   const { sessions, courses, activeId } = store;
   const step = (d) =>
     setPrefs((p) => ({ ...p, textScale: Math.min(1.4, Math.max(0.9, Math.round((p.textScale + d) * 10) / 10)) }));
 
+  if (collapsed) {
+    return (
+        <aside className="rail rail-left" aria-label="Sidebar (collapsed)">
+        <button className="icon-btn rail-toggle has-tip" data-tip="Open sidebar" onClick={onToggle} aria-label="Open sidebar">
+            <PanelLeft size={22} aria-hidden="true" />
+        </button>
+        <span className="rail-divider" aria-hidden="true" />
+        <button className="rail-btn rail-new has-tip" data-tip="New session" onClick={() => onNew(null)} aria-label="New session">
+            <Plus size={20} aria-hidden="true" />
+        </button>
+        <span className="rail-spacer" />
+        <span className="rail-divider" aria-hidden="true" />
+        <button className="rail-btn rail-plain has-tip" data-tip="Display settings" onClick={onToggle} aria-label="Open sidebar for display settings">
+            <Settings size={20} aria-hidden="true" />
+        </button>
+        </aside>
+    );
+  }
   return (
     <aside className="sidebar">
       <div className="brand">
         <span className="logo"><GraduationCap size={20} aria-hidden="true" /></span>
         ThinkingCap
+        <button className="icon-btn brand-toggle" onClick={onToggle} aria-label="Close sidebar">
+            <PanelLeft size={22} aria-hidden="true" />
+        </button>
       </div>
       <button className="btn-primary wide" onClick={() => onNew(null)}>
         <Plus size={14} aria-hidden="true" /> New session
