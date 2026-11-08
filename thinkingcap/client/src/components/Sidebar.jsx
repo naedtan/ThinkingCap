@@ -30,7 +30,7 @@ export default function Sidebar({ store, onNew, onOpen, onAddCourse, prefs, setP
         ThinkingCap
       </div>
       <button className="btn-primary wide" onClick={() => onNew(null)}>
-        <Plus size={16} aria-hidden="true" /> New session
+        <Plus size={14} aria-hidden="true" /> New session
       </button>
 
       <nav aria-label="Sessions and courses" className="side-nav">

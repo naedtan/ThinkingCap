@@ -1,11 +1,20 @@
 import { useEffect, useState } from 'react';
+import { PanelRight } from 'lucide-react';
 import Sidebar from './components/Sidebar.jsx';
 import Welcome from './components/Welcome.jsx';
 import Thread from './components/Thread.jsx';
 import Composer from './components/Composer.jsx';
+import LearningPreferences from "./components/LearningPreferences/LearningPreferences.jsx"
 import { askTutor, toHistory } from './api.js';
 
 const STORE = 'thinkingcap:v1';
+const LEARNING_STORE = 'thinkingcap:learning:v1';
+const DEFAULT_LEARNING = {
+  level: 'medium',
+  types: { guided: true, practice: true, teachback: true, quizzes: true },
+  style: 'concise',
+};
+
 const uid = () => Math.random().toString(36).slice(2, 10);
 
 function load() {
@@ -18,12 +27,28 @@ function load() {
   return { sessions: [], courses: [], activeId: null };
 }
 
+function loadLearning() {
+  try {
+    const raw = localStorage.getItem(LEARNING_STORE);
+    if (raw) {
+      const saved = JSON.parse(raw);
+      // Merge so older saved data still gets any newly added options.
+      return { ...DEFAULT_LEARNING, ...saved, types: { ...DEFAULT_LEARNING.types, ...saved.types } };
+    }
+  } catch {
+    /* ignore */
+  }
+  return DEFAULT_LEARNING;
+}
+
 export default function App() {
   const [store, setStore] = useState(load);
   const [busy, setBusy] = useState(false);
   const [draft, setDraft] = useState('');
   const [pendingCourse, setPendingCourse] = useState(null);
   const [prefs, setPrefs] = useState({ textScale: 1, contrast: false });
+  const [learning, setLearning] = useState(loadLearning); // learningPreferences
+  const [learningPanelOpen, setLearningPanelOpen] = useState(true);
 
   useEffect(() => {
     try {
@@ -32,6 +57,14 @@ export default function App() {
       /* ignore */
     }
   }, [store]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(LEARNING_STORE, JSON.stringify(learning));
+    } catch {
+      /* ignore */
+    }
+  }, [learning]);
 
   useEffect(() => {
     document.documentElement.style.setProperty('--text-scale', prefs.textScale);
@@ -49,7 +82,7 @@ export default function App() {
   async function run({ sessionId, intent, turns, topic, modes, extra }) {
     setBusy(true);
     try {
-      const turn = await askTutor({ intent, topic, modes, history: toHistory(turns), ...extra });
+      const turn = await askTutor({ intent, topic, modes, learning, history: toHistory(turns), ...extra });
       patchSession(sessionId, (s) => ({ ...s, turns: [...s.turns, { id: uid(), role: 'tutor', ...turn }] }));
     } catch (err) {
       patchSession(sessionId, (s) => ({
@@ -131,7 +164,7 @@ export default function App() {
   const course = store.courses.find((c) => c.id === (active ? active.courseId : pendingCourse));
 
   return (
-    <div className="app">
+    <div className={`app ${learningPanelOpen ? '' : 'prefs-closed'}`}>
       <Sidebar
         store={store}
         onNew={openNew}
@@ -145,6 +178,11 @@ export default function App() {
           <span>ThinkingCap</span>
           {course && <span>/ {course.name}</span>}
           <span className="crumb">{active ? active.title : 'New session'}</span>
+        {!learningPanelOpen && (
+            <button className="icon-btn reopen" onClick={() => setLearningPanelOpen(true)} aria-label="Open learning preferences">
+              <PanelRight size={20} />
+            </button>
+          )}
         </header>
         {active ? (
           <>
@@ -165,6 +203,9 @@ export default function App() {
           <Welcome>{composer}</Welcome>
         )}
       </main>
+      <div className="prefs-wrap" aria-hidden={!learningPanelOpen}>
+        <LearningPreferences value={learning} onChange={setLearning} onToggle={() => setLearningPanelOpen(false)} />
+      </div>
     </div>
   );
 }
