@@ -81,7 +81,7 @@ const DIRECTIVES = {
   stuck:
     'The student is stuck and wants a hint. Use kind "hint" with 3 suggestions: a first-instinct nudge, a smaller example, and a real-world analogy. If the student has already asked for hints in this session, make each hint more concrete. Do not give the full answer unless they have asked for hints three or more times.',
   clarify:
-    'The student is confused. Use kind "concept". Address exactly what they asked for: clarification requested = [{clarifications}]; their note = "{detail}". Keep it short and put a one-sentence takeaway in key_idea.',
+    'The student is confused about your most recent explanation. Use kind "concept". This overrides the learning style and any rule about withholding answers: explain directly instead of asking a guiding question. Address exactly what they asked for: clarification requested = [{clarifications}]; their note = "{detail}". If the transcript shows they already asked for clarification on this idea, take a different approach than before (a new analogy, a smaller step, or a worked example). Keep it short, put a one-sentence takeaway in key_idea, and end with a short check-in such as "Does that make sense?"',
   quiz:
     'Use kind "quiz". Write one multiple-choice question testing the idea just discussed, with 3 options (ids "a", "b", "c"), plausible distractors based on common misconceptions, exactly one correct_id, and an explanation of why it is right and why the best distractor is not. message is a one-sentence lead-in.',
   teachback:
@@ -89,7 +89,7 @@ const DIRECTIVES = {
   practice:
     'Use kind "practice". Give one new short problem or prompt about this topic for the student to try on their own. Do not include the solution. Add 1 or 2 starters if useful.',
   summary:
-    'Use kind "summary". message is a two-sentence recap. Put 2 to 4 short items the student covered or demonstrated in learned, and 1 to 3 short items to revisit in keep_working_on.',
+    'Use kind "summary" for the whole session so far. message is a two-sentence recap of the main topics. Put 2 to 4 short ideas in learned; prefix any idea that was only explained to the student, not demonstrated by them (a right quiz answer or a solid teach-back), with "Covered:". Put 1 to 3 short items in keep_working_on, grounded in wrong quiz answers, teach-back gaps, or repeated clarification requests. Never claim mastery the transcript does not show. If the session is very short, say so and keep the lists short.',
 };
 
 const CLARIFY_LABELS = {
@@ -101,6 +101,32 @@ const CLARIFY_LABELS = {
 
 const clip = (value, max) => String(value ?? '').slice(0, max);
 
+// Most intents only need the recent turns. A summary covers the whole session, so it gets a
+// longer window; sessions can be resumed days later and early topics should still count.
+const WINDOWS = {
+  default: { turns: 24, chars: 1500 },
+  summary: { turns: 60, chars: 900 },
+};
+
+// Counts the client computes from the session (quizzes, hints, ...). Only numbers get through.
+const STAT_LABELS = [
+  ['quizzes', 'quizzes answered'],
+  ['quizzesCorrect', 'of those answered correctly'],
+  ['hints', 'hints requested'],
+  ['clarifications', 'clarification requests'],
+  ['teachbacks', 'teach-backs attempted'],
+  ['practice', 'practice attempts'],
+];
+
+function statsLine(stats) {
+  if (!stats || typeof stats !== 'object') return '';
+  const parts = STAT_LABELS.map(([key, label]) => {
+    const n = Number(stats[key]);
+    return Number.isFinite(n) && n >= 0 ? `${Math.min(Math.floor(n), 999)} ${label}` : null;
+  }).filter(Boolean);
+  return parts.length ? `\n\nActivity so far (counted by the app): ${parts.join('; ')}.` : '';
+}
+
 export function buildRequest(body = {}) {
   const directive = DIRECTIVES[body.intent];
   if (!directive) throw new BadRequest('Unknown intent.');
@@ -110,25 +136,33 @@ export function buildRequest(body = {}) {
   const modes = (Array.isArray(body.modes) ? body.modes : []).filter((m) => MODES[m]);
   if (!modes.length) modes.push('guided');
 
-  const history = (Array.isArray(body.history) ? body.history : []).slice(-24);
+  const window = WINDOWS[body.intent] || WINDOWS.default;
+  const history = (Array.isArray(body.history) ? body.history : []).slice(-window.turns);
   const transcript = history
-    .map((t) => `[${t.role === 'student' ? 'student' : `tutor:${clip(t.kind, 20)}`}] ${clip(t.text, 1500)}`)
+    .map((t) => `[${t.role === 'student' ? 'student' : `tutor:${clip(t.kind, 20)}`}] ${clip(t.text, window.chars)}`)
     .join('\n');
 
   const clarifications = (Array.isArray(body.clarifications) ? body.clarifications : [])
+    .filter((c) => typeof c === 'string' && Object.hasOwn(CLARIFY_LABELS, c))
     .map((c) => CLARIFY_LABELS[c])
-    .filter(Boolean)
     .join(', ');
+  const detail = clip(body.detail, 400).trim();
 
+  if (body.intent === 'clarify' && !clarifications && !detail) {
+    throw new BadRequest('Choose what would help, or describe what is confusing.');
+  }
+
+  // Function replacers keep "$&" and similar patterns in a student's note from being expanded.
   const task = directive
-    .replace('{clarifications}', clarifications || 'none')
-    .replace('{detail}', clip(body.detail, 400) || 'none');
+    .replace('{clarifications}', () => clarifications || 'none')
+    .replace('{detail}', () => detail || 'none');
 
   const systemInstruction = `${SYSTEM}\n\nLearning style the student chose (combine them):\n${modes
     .map((m) => `- ${MODES[m]}`)
     .join('\n')}`;
 
-  const contents = `Student's topic or question: ${topic}\n\nSession so far:\n${transcript || '(nothing yet)'}\n\nTask now: ${task}`;
+  const stats = body.intent === 'summary' ? statsLine(body.stats) : '';
+  const contents = `Student's topic or question: ${topic}\n\nSession so far:\n${transcript || '(nothing yet)'}${stats}\n\nTask now: ${task}`;
   return { systemInstruction, contents };
 }
 

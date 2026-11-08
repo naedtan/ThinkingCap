@@ -1,5 +1,6 @@
 import { GraduationCap, Lightbulb } from 'lucide-react';
 import ModeSelector from './ModeSelector.jsx';
+import { describeStats } from '../api.js';
 
 const LABELS = {
   diagnostic: 'Prior knowledge check',
@@ -50,7 +51,7 @@ function Quiz({ quiz, picked, onPick }) {
   );
 }
 
-export default function TurnCard({ turn, onFill, onQuizAnswer, onChooseModes }) {
+export default function TurnCard({ turn, onFill, onQuizAnswer, onChooseModes, onRetry }) {
   if (turn.role === 'student') return <div className="student">{turn.text}</div>;
 
   return (
@@ -90,8 +91,19 @@ export default function TurnCard({ turn, onFill, onQuizAnswer, onChooseModes }) 
             )}
             <Bullets title="What you got right" items={turn.strengths} />
             <Bullets title="Worth another look" items={turn.missing} />
+            {turn.kind === 'summary' && describeStats(turn.stats) && (
+              <div className="bullets">
+                <h4>What you did</h4>
+                <p className="stats">{describeStats(turn.stats)}</p>
+              </div>
+            )}
             <Bullets title="What you covered" items={turn.learned} />
             <Bullets title="Keep working on" items={turn.keep_working_on} />
+            {turn.kind === 'error' && onRetry && turn.retry && (
+              <div className="actions">
+                <button className="btn-ghost" onClick={() => onRetry(turn)}>Try again</button>
+              </div>
+            )}
           </>
         )}
       </div>
