@@ -140,6 +140,7 @@ h1 { font-size: 2.4rem; font-weight: 800; letter-spacing: -0.02em; line-height: 
 .bullets h4 { font-size: 0.85rem; margin-bottom: 0.2rem; }
 .bullets li { font-size: 0.92rem; padding-left: 1rem; position: relative; }
 .bullets li::before { content: '–'; position: absolute; left: 0; color: var(--muted); }
+.stats { font-size: 0.92rem; color: var(--muted); }
 
 /* Modes */
 .modes { border: 0; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.6rem; }

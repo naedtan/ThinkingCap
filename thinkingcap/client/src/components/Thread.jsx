@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import TurnCard from './TurnCard.jsx';
 
-export default function Thread({ turns, busy, onFill, onQuizAnswer, onChooseModes, onIntent, onNew }) {
+export default function Thread({ turns, busy, onFill, onQuizAnswer, onChooseModes, onIntent, onRetry, onNew }) {
   const endRef = useRef(null);
   const last = turns.at(-1);
 
@@ -17,7 +17,14 @@ export default function Thread({ turns, busy, onFill, onQuizAnswer, onChooseMode
     <div className="thread">
       <div className="thread-inner" aria-live="polite">
         {turns.map((t) => (
-          <TurnCard key={t.id} turn={t} onFill={onFill} onQuizAnswer={onQuizAnswer} onChooseModes={onChooseModes} />
+          <TurnCard
+            key={t.id}
+            turn={t}
+            onFill={onFill}
+            onQuizAnswer={onQuizAnswer}
+            onChooseModes={onChooseModes}
+            onRetry={t === last && !busy ? onRetry : undefined}
+          />
         ))}
         {busy && <p className="thinking" role="status">ThinkingCap is thinking…</p>}
         {showActions && last.kind === 'summary' && (
@@ -29,7 +36,6 @@ export default function Thread({ turns, busy, onFill, onQuizAnswer, onChooseMode
             <button className="chip" onClick={() => onIntent('clarify', { clarifications: ['example'] })}>Show an example</button>
             <button className="chip" onClick={() => onIntent('practice')}>Practice it</button>
             <button className="chip" onClick={() => onIntent('teachback')}>Teach it back</button>
-            <button className="chip" onClick={() => onIntent('summary')}>Wrap up</button>
           </div>
         )}
         <div ref={endRef} />
