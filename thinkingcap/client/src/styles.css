@@ -200,6 +200,7 @@ h1 { font-size: var(--fs-h1); font-weight: var(--w-strong); letter-spacing: -0.0
 .bullets h4 { font-size: var(--fs-sm); margin-bottom: 0.2rem; }
 .bullets li { font-size: var(--fs-md); padding-left: 1rem; position: relative; }
 .bullets li::before { content: '–'; position: absolute; left: 0; color: var(--muted); }
+.stats { font-size: 0.92rem; color: var(--muted); }
 
 /* Modes */
 .modes { border: 0; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.6rem; }

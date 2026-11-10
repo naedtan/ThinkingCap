@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowUp, HelpCircle, Lightbulb } from 'lucide-react';
+import { ArrowUp, ClipboardList, HelpCircle, Lightbulb } from 'lucide-react';
 import ConfusedPanel from './ConfusedPanel.jsx';
 
-export default function Composer({ draft, setDraft, onSubmit, busy, disabled, inSession, onIntent }) {
+export default function Composer({ draft, setDraft, onSubmit, busy, disabled, inSession, canSummarize, onIntent }) {
   const [confusedOpen, setConfusedOpen] = useState(false);
   const ref = useRef(null);
 
@@ -53,6 +53,9 @@ export default function Composer({ draft, setDraft, onSubmit, busy, disabled, in
                 </button>
                 <button className="chip peach" disabled={busy || disabled} onClick={() => onIntent('stuck')}>
                   <Lightbulb size={14} aria-hidden="true" /> Give me a hint
+                </button>
+                <button className="chip" disabled={busy || disabled || !canSummarize} onClick={() => onIntent('summary')}>
+                  <ClipboardList size={14} aria-hidden="true" /> Session Summary
                 </button>
               </>
             )}
