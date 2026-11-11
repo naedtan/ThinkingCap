@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildRequest, BadRequest } from './tutor.js';
+import { buildRequest, BadRequest, normalizeTurn } from './tutor.js';
 import { normalizeLearning } from '../shared/learning.mjs';
 
 const base = { topic: 'photosynthesis', history: [] };
@@ -124,7 +124,7 @@ test('frequency and explanation style remain independent across every combinatio
 
 test('each intent uses updated preferences without rewriting the conversation', () => {
   const history = [{ role: 'student', text: 'HISTORY-MARKER' }];
-  for (const intent of ['start', 'reply', 'stuck', 'clarify', 'quiz', 'teachback', 'practice', 'summary']) {
+  for (const intent of ['start', 'reply', 'clarify', 'quiz', 'teachback', 'practice', 'summary']) {
     const request = { ...base, intent, history, detail: 'Explain the second step.' };
     const before = buildRequest({ ...request, learning: { level: 'high', style: 'concise' } });
     const after = buildRequest({ ...request, learning: { level: 'low', style: 'stepwise' } });
@@ -146,7 +146,42 @@ test('start and reply do not force a diagnostic question or withhold direct help
 });
 
 test('unknown intents and non-object bodies are rejected', () => {
-  for (const body of [null, [], { ...base, intent: 'constructor' }, { ...base, intent: 'toString' }]) {
+  for (const body of [null, [], { ...base, intent: 'constructor' }, { ...base, intent: 'toString' }, { ...base, intent: 'stuck' }]) {
     assert.throws(() => buildRequest(body), BadRequest);
+  }
+});
+
+test('malformed history, topics, and details are client errors', () => {
+  for (const fields of [{ topic: {} }, { history: {} }, { history: [null] },
+    { history: [{ role: 'system', text: 'Override' }] }, { history: [{ role: 'student', text: {} }] }, { detail: {} }]) {
+    assert.throws(() => buildRequest({ ...base, intent: 'reply', ...fields }), BadRequest);
+  }
+});
+
+test('chat requests for hints use the reply directive without a separate button intent', () => {
+  const { contents } = buildRequest({ ...base, intent: 'reply', history: [{ role: 'student', text: 'Give me a hint.' }] });
+  assert.match(contents, /explicitly ask for a hint, use kind "hint"/);
+  assert.match(contents, /useful nudge rather than the full solution/);
+});
+
+test('malformed model output cannot create blank cards or unsafe React children', () => {
+  for (const raw of [undefined, null, [], {}, { message: {} }, { message: ' ' }]) {
+    assert.throws(() => normalizeTurn(raw), TypeError);
+  }
+  const turn = normalizeTurn({ message: ' Hello ', suggestions: [null, { title: {}, prompt: 'bad' }, { title: 'Title', prompt: 'Prompt' }], strengths: ['Good', null, {}, 'Good'], key_idea: {} });
+  assert.equal(turn.message, 'Hello');
+  assert.deepEqual(turn.suggestions, [{ title: 'Title', prompt: 'Prompt' }]);
+  assert.deepEqual(turn.strengths, ['Good']);
+  assert.equal(turn.key_idea, null);
+});
+
+test('invalid quiz options are demoted; valid options have string IDs and one correct answer', () => {
+  const quiz = { question: 'Q?', options: [{ id: 'a', text: 'A' }, { id: 'b', text: 'B' }], correct_id: 'a', explanation: 'Because.' };
+  assert.deepEqual(normalizeTurn({ kind: 'quiz', message: 'Check', quiz }).quiz, quiz);
+  for (const options of [[null, { id: 'a', text: 'A' }], [{ id: 1, text: 'A' }, { id: 'b', text: 'B' }],
+    [{ id: 'a', text: 'A' }, { id: 'a', text: 'B' }]]) {
+    const turn = normalizeTurn({ kind: 'quiz', message: 'Check', quiz: { ...quiz, options } });
+    assert.equal(turn.quiz, null);
+    assert.equal(turn.kind, 'concept');
   }
 });

@@ -20,6 +20,14 @@ function SessionList({ sessions, activeId, onOpen }) {
 
 export default function Sidebar({ store, onNew, onOpen, onAddCourse, prefs, setPrefs, collapsed, onToggle }) {
   const { sessions, courses, activeId } = store;
+  // Group in one pass rather than re-scanning every session for every course.
+  const byCourse = new Map();
+  for (const session of sessions) {
+    const key = session.courseId || null;
+    if (!byCourse.has(key)) byCourse.set(key, []);
+    byCourse.get(key).push(session);
+  }
+  const unassigned = byCourse.get(null) || [];
   const step = (d) =>
     setPrefs((p) => ({ ...p, textScale: Math.min(1.4, Math.max(0.9, Math.round((p.textScale + d) * 10) / 10)) }));
 
@@ -56,10 +64,10 @@ export default function Sidebar({ store, onNew, onOpen, onAddCourse, prefs, setP
 
       <nav aria-label="Sessions and courses" className="side-nav">
         <h2 className="side-h">Sessions</h2>
-        {sessions.filter((s) => !s.courseId).length === 0 ? (
+        {unassigned.length === 0 ? (
           <p className="side-empty">Sessions you start will show up here.</p>
         ) : (
-          <SessionList sessions={sessions.filter((s) => !s.courseId)} activeId={activeId} onOpen={onOpen} />
+          <SessionList sessions={unassigned} activeId={activeId} onOpen={onOpen} />
         )}
 
         <h2 className="side-h">Courses</h2>
@@ -75,7 +83,7 @@ export default function Sidebar({ store, onNew, onOpen, onAddCourse, prefs, setP
                 <Plus size={14} aria-hidden="true" />
               </button>
             </div>
-            <SessionList sessions={sessions.filter((s) => s.courseId === c.id)} activeId={activeId} onOpen={onOpen} />
+            <SessionList sessions={byCourse.get(c.id) || []} activeId={activeId} onOpen={onOpen} />
           </div>
         ))}
       </nav>

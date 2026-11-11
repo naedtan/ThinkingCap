@@ -92,3 +92,26 @@ test('describeStats is empty for an empty session and pluralizes', () => {
     '1 quiz (1 correct) · 2 hints · 1 clarification',
   );
 });
+
+test('history transport is bounded before serialization and summaries keep a wider window', () => {
+  const turns = Array.from({ length: 2000 }, (_, index) => ({ role: 'student', text: `${index}:${'x'.repeat(2000)}` }));
+  const reply = toHistory(turns);
+  const summary = toHistory(turns, 'summary');
+  assert.equal(reply.length, 24);
+  assert.equal(summary.length, 60);
+  assert.ok(reply.every(({ text }) => text.length <= 1500));
+  assert.ok(summary.every(({ text }) => text.length <= 900));
+  assert.match(reply.at(-1).text, /^1999:/);
+  assert.match(reply[0].text, /^1976:/);
+});
+
+test('quiz history contains the options needed to understand the selected answer', () => {
+  const history = toHistory([quizTurn('quiz', 'b')]);
+  assert.match(history[0].text, /Options: a: A; b: B/);
+  assert.match(history[0].text, /Student picked b \(incorrect\)/);
+});
+
+test('a malformed successful HTTP response becomes an error instead of an empty card', async (t) => {
+  t.mock.method(globalThis, 'fetch', async () => ({ ok: true, json: async () => ({ turn: null }) }));
+  await assert.rejects(askTutor({}), /invalid or empty response/);
+});

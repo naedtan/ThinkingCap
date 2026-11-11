@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import TurnCard from './TurnCard.jsx';
 import { needsStart } from '../sessions.js';
 
-export default function Thread({ turns, busy, onFill, onQuizAnswer, onIntent, onRetry, onNew }) {
+export default function Thread({ turns, busy, requestBusy, onFill, onQuizAnswer, onIntent, onRetry, onNew }) {
   const endRef = useRef(null);
   const last = turns.at(-1);
 
@@ -12,7 +12,9 @@ export default function Thread({ turns, busy, onFill, onQuizAnswer, onIntent, on
 
   // Next-step buttons appear under the newest tutor turn, once the student has answered any open quiz.
   const quizOpen = last?.quiz && last.picked == null;
-  const showActions = !busy && last?.role === 'tutor' && !['modes', 'error'].includes(last.kind) && !quizOpen;
+  const showActions = !requestBusy && last?.role === 'tutor' && !['modes', 'error'].includes(last.kind) && !quizOpen;
+  // A refresh can leave a saved student message without its pending response.
+  const canContinue = needsStart(turns) || last?.role === 'student' || (last?.kind === 'error' && !last.retry);
 
   return (
     <div className="thread">
@@ -23,12 +25,12 @@ export default function Thread({ turns, busy, onFill, onQuizAnswer, onIntent, on
             turn={t}
             onFill={onFill}
             onQuizAnswer={onQuizAnswer}
-            onRetry={t === last && !busy ? onRetry : undefined}
+            onRetry={t === last && !requestBusy ? onRetry : undefined}
           />
         ))}
-        {!busy && needsStart(turns) && last?.kind !== 'error' && (
+        {!requestBusy && canContinue && (last?.kind !== 'error' || !last.retry) && (
           <div className="actions">
-            <button className="btn-primary" onClick={() => onIntent('start')}>Continue learning</button>
+            <button className="btn-primary" onClick={() => onIntent(needsStart(turns) ? 'start' : 'reply')}>Continue learning</button>
           </div>
         )}
         {busy && <p className="thinking" role="status">ThinkingCap is thinking…</p>}

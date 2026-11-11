@@ -1,8 +1,8 @@
 // Shared contract for browser storage and the tutor API. Never forward arbitrary
 // preference text to the model: only these IDs and boolean flags are supported.
-export const LEVELS = ['low', 'medium', 'high'];
-export const ACTIVITY_TYPES = ['guided', 'practice', 'teachback', 'quizzes'];
-export const STYLES = ['concise', 'stepwise'];
+export const LEVELS = Object.freeze(['low', 'medium', 'high']);
+export const ACTIVITY_TYPES = Object.freeze(['guided', 'practice', 'teachback', 'quizzes']);
+export const STYLES = Object.freeze(['concise', 'stepwise']);
 
 const isObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 const own = (value, key) => Object.hasOwn(value, key);
@@ -23,13 +23,14 @@ export function normalizeLearning(value, { strict = false } = {}) {
   };
   let types = own(value, 'types') ? value.types : {};
   if (!isObject(types)) types = invalid('types must be an object', {});
+  const flag = (id) => {
+    if (!own(types, id)) return true;
+    return typeof types[id] === 'boolean' ? types[id] : invalid(`types.${id} must be a boolean`, true);
+  };
 
   return {
     level: choice('level', LEVELS, 'medium'),
-    types: Object.fromEntries(ACTIVITY_TYPES.map((id) => [
-      id,
-      !own(types, id) ? true : typeof types[id] === 'boolean' ? types[id] : invalid(`types.${id} must be a boolean`, true),
-    ])),
+    types: Object.fromEntries(ACTIVITY_TYPES.map((id) => [id, flag(id)])),
     style: choice('style', STYLES, 'concise'),
   };
 }

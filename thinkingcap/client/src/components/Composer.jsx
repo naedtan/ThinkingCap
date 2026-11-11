@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowUp, ClipboardList, HelpCircle, Lightbulb } from 'lucide-react';
+import { ArrowUp, ClipboardList, HelpCircle } from 'lucide-react';
 import ConfusedPanel from './ConfusedPanel.jsx';
 
-export default function Composer({ draft, setDraft, onSubmit, busy, inSession, canSummarize, onIntent }) {
+export default function Composer({ draft, setDraft, onSubmit, busy, waitingElsewhere, inSession, canSummarize, onIntent }) {
   const [confusedOpen, setConfusedOpen] = useState(false);
   const ref = useRef(null);
 
@@ -17,8 +17,10 @@ export default function Composer({ draft, setDraft, onSubmit, busy, inSession, c
 
   return (
     <div className="composer-wrap">
+      {waitingElsewhere && <p className="thinking" role="status">ThinkingCap is responding in another session. You can send a message when it finishes.</p>}
       {confusedOpen && inSession && (
         <ConfusedPanel
+          busy={busy}
           onClose={() => setConfusedOpen(false)}
           onSend={(extra) => {
             setConfusedOpen(false);
@@ -35,7 +37,7 @@ export default function Composer({ draft, setDraft, onSubmit, busy, inSession, c
           aria-label="Your message"
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
+            if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
               e.preventDefault();
               onSubmit(draft);
             }
@@ -47,9 +49,6 @@ export default function Composer({ draft, setDraft, onSubmit, busy, inSession, c
               <>
                 <button className="chip lav" aria-expanded={confusedOpen} disabled={busy} onClick={() => setConfusedOpen((o) => !o)}>
                   <HelpCircle size={14} aria-hidden="true" /> I’m confused
-                </button>
-                <button className="chip peach" disabled={busy} onClick={() => onIntent('stuck')}>
-                  <Lightbulb size={14} aria-hidden="true" /> Give me a hint
                 </button>
                 <button className="chip" disabled={busy || !canSummarize} onClick={() => onIntent('summary')}>
                   <ClipboardList size={14} aria-hidden="true" /> Session Summary

@@ -65,6 +65,20 @@ const onActivate = (fn) => (e) => {
   }
 };
 
+// Custom radio cards need the same arrow/Home/End navigation as native radios.
+// Only the selected choice is a Tab stop; switches remain independent controls.
+function onRadioKey(event) {
+  if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return;
+  const choices = [...event.currentTarget.querySelectorAll('[role="radio"]')];
+  const current = choices.indexOf(event.target.closest('[role="radio"]'));
+  if (current < 0) return;
+  event.preventDefault();
+  const direction = ['ArrowLeft', 'ArrowUp'].includes(event.key) ? -1 : 1;
+  const next = event.key === 'Home' ? 0 : event.key === 'End' ? choices.length - 1 : (current + direction + choices.length) % choices.length;
+  choices[next].focus();
+  choices[next].click();
+}
+
 export default function LearningPreferences({ value, onChange, collapsed, onToggle }) {
   const { level, types, style } = value;
 
@@ -81,7 +95,7 @@ export default function LearningPreferences({ value, onChange, collapsed, onTogg
         <span className="rail-divider" aria-hidden="true" />
 
         {/* Interaction level: 1, 2 or 3 filled bars */}
-        <div className="rail-group" role="radiogroup" aria-label="Interaction level">
+        <div className="rail-group" role="radiogroup" aria-label="Interaction level" onKeyDown={onRadioKey}>
           {Object.keys(LEVELS).map((key) => {
             const label = `${key[0].toUpperCase() + key.slice(1)} interaction`;
             return (
@@ -89,6 +103,7 @@ export default function LearningPreferences({ value, onChange, collapsed, onTogg
                 key={key}
                 role="radio"
                 aria-checked={level === key}
+                tabIndex={level === key ? 0 : -1}
                 aria-label={label}
                 data-tip={label}
                 className={`rail-btn has-tip ${level === key ? "is-on" : ""}`}
@@ -117,12 +132,13 @@ export default function LearningPreferences({ value, onChange, collapsed, onTogg
         <span className="rail-divider" aria-hidden="true" />
 
         {/* Explanation style */}
-        <div className="rail-group" role="radiogroup" aria-label="Explanation style">
+        <div className="rail-group" role="radiogroup" aria-label="Explanation style" onKeyDown={onRadioKey}>
           {EXPLANATION_STYLES.map(({ id, icon: Icon, title }) => (
             <button
               key={id}
               role="radio"
               aria-checked={style === id}
+              tabIndex={style === id ? 0 : -1}
               aria-label={title}
               data-tip={title}
               className={`rail-btn has-tip ${style === id ? "is-on" : ""}`}
@@ -157,12 +173,13 @@ export default function LearningPreferences({ value, onChange, collapsed, onTogg
           </h3>
           <p className="lp-hint">How often ThinkingCap introduces activities</p>
 
-          <div className="lp-segmented" role="radiogroup" aria-label="Interaction level">
+          <div className="lp-segmented" role="radiogroup" aria-label="Interaction level" onKeyDown={onRadioKey}>
             {Object.keys(LEVELS).map((key) => (
               <button
                 key={key}
                 role="radio"
                 aria-checked={level === key}
+                tabIndex={level === key ? 0 : -1}
                 className={level === key ? "is-active" : ""}
                 onClick={() => pickInteractionLevel(key)}
               >
@@ -213,14 +230,14 @@ export default function LearningPreferences({ value, onChange, collapsed, onTogg
           </h3>
           <p className="lp-hint">How concepts are explained. Step-by-step changes the explanation, not how often activities appear.</p>
 
-          <div className="lp-stack" role="radiogroup" aria-label="Explanation style">
+          <div className="lp-stack" role="radiogroup" aria-label="Explanation style" onKeyDown={onRadioKey}>
             {EXPLANATION_STYLES.map(({ id, icon: Icon, title, desc }) => (
               <div
                 className={`lp-card lp-card-clickable ${style === id ? "is-selected" : ""}`}
                 key={id}
                 role="radio"
                 aria-checked={style === id}
-                tabIndex={0}
+                tabIndex={style === id ? 0 : -1}
                 onClick={() => pickExplanationStyle(id)}
                 onKeyDown={onActivate(() => pickExplanationStyle(id))}
               >

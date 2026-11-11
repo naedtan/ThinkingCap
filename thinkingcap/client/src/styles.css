@@ -155,9 +155,6 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
 /* Welcome */
 h1 { font-size: var(--fs-h1); font-weight: var(--w-strong); letter-spacing: -0.02em; line-height: 1.15; }
 .lede { color: var(--muted); max-width: 34rem; }
-.how { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem 1rem; font-size: var(--fs-sm); color: var(--muted); }
-.how li { display: inline-flex; align-items: center; gap: 0.4rem; }
-.num { display: inline-grid; place-items: center; width: 1.2rem; height: 1.2rem; border-radius: 50%; background: var(--card); border: 1px solid var(--line); font-size: var(--fs-xs); font-weight: var(--w-strong); color: var(--ink); }
 
 /* Composer */
 .composer-wrap { width: 100%; text-align: left; display: flex; flex-direction: column; gap: 0.6rem; }
@@ -201,15 +198,6 @@ h1 { font-size: var(--fs-h1); font-weight: var(--w-strong); letter-spacing: -0.0
 .bullets li { font-size: var(--fs-md); padding-left: 1rem; position: relative; }
 .bullets li::before { content: '–'; position: absolute; left: 0; color: var(--muted); }
 .stats { font-size: 0.92rem; color: var(--muted); }
-
-/* Modes */
-.modes { border: 0; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.6rem; }
-.modes legend { padding: 0; margin-bottom: 0.6rem; }
-.mode { display: flex; gap: 0.7rem; align-items: flex-start; border: 1px solid var(--line); border-radius: 12px; padding: 0.6rem 0.8rem; cursor: pointer; }
-.mode.on { background: var(--lav); border-color: var(--lav-ink); }
-.mode input { margin-top: 0.3rem; accent-color: var(--lav-ink); width: 1.05rem; height: 1.05rem; }
-.mode small { display: block; color: var(--muted); font-size: var(--fs-sm); }
-.modes .btn-primary { align-self: flex-start; }
 
 /* Quiz */
 .q { font-weight: var(--w-medium); }
