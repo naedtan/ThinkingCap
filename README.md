@@ -33,9 +33,9 @@ Set `GEMINI_FALLBACK_MODELS=` to disable fallback. If omitted, the other support
 |---|---|
 | Learning preferences (interaction level, activity toggles, explanation style) | `client/src/components/LearningPreferences/`, shared contract in `shared/learning.mjs`, prompt behavior in `server/tutor.js` |
 | Prior knowledge check | Optional `start` diagnostic when guided questions are enabled and interaction is medium/high; direct help remains available |
-| Conversational hints and thought-starters | Ask for a hint in chat; `reply` can return a `hint` card, and suggestion cards fill the text box |
+| Conversational hints and suggested replies | Ask for a hint in chat; `reply` can return a `hint` card. Clicking a suggestion such as "Intuition" immediately sends its text as a student message |
 | Comprehension checkpoints | `quiz` intent, answered and graded in `TurnCard.jsx` |
-| Sentence starters | `starters` field, chips that fill the text box |
+| Sentence starters | `starters` field, chips that fill the text box so the student can finish the thought before sending |
 | Teach-back with feedback | `teachback` intent, then `reply` returns a `feedback` turn (right / worth another look) |
 | "I'm confused" with targeted clarification | `ConfusedPanel.jsx` sends the `clarify` intent; the single help button replaces the separate hint button |
 | End-of-session summary | `summary` intent ("Session Summary") |
@@ -58,6 +58,7 @@ The right sidebar is the only preference chooser. The first student message star
 | Step-by-step explanations | Present reasoning in small connected steps; does not increase activity frequency or require permission between steps |
 
 Frequency is adaptive and instructed through the prompt, not a fixed schedule enforced by code. Selecting all activity types does not require every response to contain them. Turning them all off means explanations without unsolicited activities at any interaction level; no extra chooser appears. Explicit requests such as "Quiz me", "Practice it", "Teach it back", or "explain this directly" take priority over the default settings for that request. Feedback on an existing activity can still be provided after its toggle is turned off.
+At Medium/High, the tutor is instructed to introduce actual selected activities proactively once there is enough material to attempt, rather than asking permission or waiting for an activity request. The backend adds recent activity types and the current run of explanation turns to the prompt so the model can vary activities and avoid endless explanations. Ordinary requests to explain a concept do not disable activities; an explicit request such as "only explain, no questions" does. Existing attempts, unanswered quizzes, and requests for clarification receive support before another activity is introduced. Activities appear within tutor responses; changing settings or waiting does not trigger background API requests.
 
 Changes apply to the next request, including replies, hints, clarification, summaries, and retries. An in-flight response keeps the preferences it was sent with. Updating a preference does not generate an API call or rewrite earlier messages. Preferences are saved across sessions in this browser's local storage, not in a server-side account.
 
@@ -104,6 +105,7 @@ server/index.js        Environment configuration and server startup
 server/app.js          Injectable Express app and HTTP error/cancellation handling
 server/models.js       Free-tier model allowlist and bounded automatic fallbacks
 server/tutor.js        Schema, preference behaviors, prompts, request builder
+server/activities.js   Context-aware guidance for proactive automatic activities
 shared/learning.mjs    Allowed preference values, defaults, normalization
 shared/conversation.mjs Shared history limits, intents, clarification labels
 shared/turns.mjs       Tutor response and quiz normalization

@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import TurnCard from './TurnCard.jsx';
 import { needsStart } from '../sessions.js';
 
-export default function Thread({ turns, busy, requestBusy, onFill, onQuizAnswer, onIntent, onRetry, onNew }) {
+export default function Thread({ turns, busy, requestBusy, onFill, onSendSuggestion, onQuizAnswer, onIntent, onRetry, onNew }) {
   const endRef = useRef(null);
   const last = turns.at(-1);
 
@@ -24,6 +24,8 @@ export default function Thread({ turns, busy, requestBusy, onFill, onQuizAnswer,
             key={t.id}
             turn={t}
             onFill={onFill}
+            onSendSuggestion={onSendSuggestion}
+            requestBusy={requestBusy}
             onQuizAnswer={onQuizAnswer}
             onRetry={t === last && !requestBusy ? onRetry : undefined}
           />

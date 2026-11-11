@@ -13,8 +13,8 @@ import "./LearningPreferences.css";
 
 const LEVELS = {
   low: "Mostly explanations. Activities appear only when you ask for them.",
-  medium: "A balanced blend of explanations and occasional interactive activities.",
-  high: "Frequent selected activities when helpful, with explanations and feedback between them.",
+  medium: "Explanations with selected activities added automatically once you have material to try.",
+  high: "Frequent selected activities introduced automatically, with explanations and feedback between them.",
 };
 const LEVEL_BARS = { low: 1, medium: 2, high: 3 };
 

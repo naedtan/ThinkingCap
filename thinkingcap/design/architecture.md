@@ -23,6 +23,7 @@ access controls.
 | `server/index.js` | Read environment configuration and start the listener |
 | `server/app.js` | HTTP routes, request cancellation, and JSON error responses |
 | `server/tutor.js` | Validate tutor input and build teaching instructions/schema |
+| `server/activities.js` | Guide proactive activity selection using recent explanations, activities, and pending attempts |
 | `server/models.js` | Select supported models and perform bounded fallback attempts |
 
 ## Request lifecycle
@@ -77,3 +78,9 @@ Live scenario checks are still needed for visual layout, keyboard interaction,
 model adherence to preferences, and tutoring quality. Adaptive activity frequency
 is a prompt instruction, not a deterministic scheduler or evidence of learning
 improvements.
+Medium/High explicitly request actual selected activities without waiting for an
+activity request. The prompt includes recent activity types and consecutive
+explanation turns; the model still decides readiness from context. Ordinary
+"explain" requests do not implicitly opt out. Clarification and existing attempts
+take precedence, and Low/all-off disables unsolicited activities. No extra
+planning call or background generation is introduced.

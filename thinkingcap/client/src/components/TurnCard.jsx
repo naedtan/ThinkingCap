@@ -49,7 +49,7 @@ function Quiz({ quiz, picked, onPick }) {
   );
 }
 
-export default function TurnCard({ turn, onFill, onQuizAnswer, onRetry }) {
+export default function TurnCard({ turn, onFill, onSendSuggestion, requestBusy, onQuizAnswer, onRetry }) {
   if (turn.role === 'student') return <div className="student">{turn.text}</div>;
 
   return (
@@ -68,7 +68,7 @@ export default function TurnCard({ turn, onFill, onQuizAnswer, onRetry }) {
         {turn.suggestions?.length > 0 && (
           <div className="suggest">
             {turn.suggestions.map((s) => (
-              <button key={s.title} className="suggest-card" onClick={() => onFill(s.prompt)}>
+              <button key={s.title} className="suggest-card" disabled={requestBusy} onClick={() => onSendSuggestion(s.prompt)}>
                 <strong>{s.title}</strong>
                 <span>{s.prompt}</span>
               </button>

@@ -23,7 +23,7 @@ export default function App() {
   const [prefs, setPrefs] = useState({ textScale: 1, contrast: false });
   const [sidebarOpen, setSidebarOpen] = useState(true); // Left side panel
   const [learning, setLearning] = useStoredState(LEARNING_STORE, normalizeLearning);
-  const [learningPanelOpen, setLearningPanelOpen] = useState(() => window.matchMedia('(min-width: 761px)').matches);
+  const [learningPanelOpen, setLearningPanelOpen] = useState(true);
 
   useEffect(() => {
     document.documentElement.style.setProperty('--text-scale', prefs.textScale);
@@ -172,6 +172,7 @@ export default function App() {
               busy={busy && pendingSessionId === active.id}
               requestBusy={busy}
               onFill={setDraft}
+              onSendSuggestion={submit}
               onQuizAnswer={answerQuiz}
               onIntent={intent}
               onRetry={retry}

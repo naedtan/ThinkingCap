@@ -5,6 +5,7 @@ import { Type } from '@google/genai';
 import { normalizeLearning } from '../shared/learning.mjs';
 import { HISTORY_WINDOWS, CLARIFY_TEXT } from '../shared/conversation.mjs';
 import { KINDS } from '../shared/turns.mjs';
+import { activityGuidance } from './activities.js';
 export { KINDS, normalizeTurn } from '../shared/turns.mjs';
 
 export class BadRequest extends Error {}
@@ -68,8 +69,8 @@ const ACTIVITIES = {
 
 const FREQUENCY = {
   low: 'Mostly direct explanations. Introduce interactive activities only when the student explicitly requests them. Do not add unsolicited questions or check-ins.',
-  medium: 'Balance explanations with occasional selected activities when helpful. Do not introduce an activity in every reply or interrupt an unfinished explanation or student attempt.',
-  high: 'Frequently offer selected activities when useful to the topic and the student\'s progress. Give at most one activity at a time, and allow explanations and feedback between activities.',
+  medium: 'Balance explanations with occasional selected activities. Proactively introduce an activity once the student has material to try, rather than waiting for them to ask. Do not interrupt an unfinished explanation or student attempt.',
+  high: 'Frequently offer selected activities when useful to the topic and the student\'s progress. Proactively include an actual question or task when ready, rather than waiting for the student to ask. Give at most one activity at a time, with explanations and feedback between activities.',
 };
 
 const EXPLANATIONS = {
@@ -87,7 +88,7 @@ Activities you may introduce automatically:
 ${enabled.length ? enabled.map((id) => `- ${ACTIVITIES[id]}`).join('\n') : '- None. Give explanations and feedback without unsolicited activities or questions. Do not ask the student to choose an activity.'}
 ${disabled.length ? `Do not introduce these activities automatically: ${disabled.join(', ')}.` : ''}
 Selected activity types are options, not a checklist; do not include all of them in one response.
-Preference priority: an explicit student request (including Quiz me, Practice it, Teach it back, hints, direct explanations, and clarification) takes priority over the default frequency, activity toggles, and explanation style for that request. A direct-help request must receive an explanation without requiring an attempt first. Giving feedback on an existing attempt remains appropriate even if that activity was just turned off. Never silently change the student's preferences.`;
+Preference priority: an explicit student request (including Quiz me, Practice it, Teach it back, hints, clarification, or asking to skip activities and only explain) takes priority over the default frequency, activity toggles, and explanation style for that request. A direct-help request must receive an explanation without requiring an attempt first. An ordinary request to explain a concept does not by itself disable activities: at medium/high, provide the explanation and introduce a selected activity when appropriate. Giving feedback on an existing attempt remains appropriate even if that activity was just turned off. Never silently change the student's preferences.`;
 }
 
 const SYSTEM = `You are ThinkingCap, an AI tutor inside a learning interface. Help the student understand and reason while respecting their control over the learning experience.
@@ -102,9 +103,9 @@ Rules:
 
 const DIRECTIVES = {
   start:
-    'Begin helping with the student\'s topic immediately using the current sidebar preferences. Normally use kind "concept" and give a useful initial explanation with a one-sentence key_idea. If guided questions are enabled, the interaction level is not low, and the student has not explicitly requested direct help, you may instead use kind "diagnostic" for a brief prior-knowledge check with 3 optional suggestions (intuition, experience, mechanics). Never ask the student to select a learning style or block help until they configure preferences. Honor any specific activity or explanation requested in their message.',
+    'Begin helping with the student\'s topic immediately using the current sidebar preferences and automatic activity planning. Give useful initial grounding. At low interaction, use kind "concept" with a one-sentence key_idea unless the student explicitly asks for an activity. At medium/high, introduce a selected activity when there is enough grounding, using its corresponding kind and fields. If guided questions are selected, a brief prior-knowledge check may use kind "diagnostic" with 3 optional suggestions (intuition, experience, mechanics). Do not choose concept by default when an activity is appropriate. Never ask the student to select a learning style or block help until they configure preferences. Honor any specific activity or explanation-only request in their message.',
   reply:
-    'Respond to the student\'s latest message using the current sidebar preferences. If they explicitly ask for a hint, use kind "hint" and offer a useful nudge rather than the full solution; make repeated hints more concrete. If they are answering a teach-back or practice prompt, use kind "feedback": name what they got right in strengths and gaps in missing, with useful corrections. Otherwise explain with kind "concept" and a one-sentence key_idea, or offer one enabled activity when appropriate to the interaction level. Honor explicit requests for any activity or direct explanation. Do not automatically end every reply with a question.',
+    'Respond to the student\'s latest message using the current sidebar preferences and automatic activity planning. If they explicitly ask for a hint, use kind "hint" and offer a useful nudge rather than the full solution; make repeated hints more concrete. If they are answering a teach-back or practice prompt, use kind "feedback": name what they got right in strengths and gaps in missing, with useful corrections. Otherwise introduce one selected activity when the student has enough grounding, using its corresponding kind and fields; explain with kind "concept" and key_idea when more groundwork or direct support is needed. A short acknowledgment such as "okay" or "I understand" is an opportunity to check understanding with a selected activity at medium/high. Honor requests for an activity or an explanation only. Do not end explanation-only replies with obligatory check-in questions.',
   clarify:
     'The student is confused about your most recent explanation. Use kind "concept". This overrides the default activity frequency and any rule about withholding answers: explain directly instead of asking a guiding question. Address exactly what they asked for: clarification requested = [{clarifications}]; their note = "{detail}". Use the current explanation style unless their request asks for a different approach. If the transcript shows they already asked for clarification on this idea, take a different approach than before (a new analogy, a smaller step, or a worked example). Keep it focused and put a one-sentence takeaway in key_idea. Do not add an unsolicited activity or require a check-in.',
   quiz:
@@ -179,7 +180,8 @@ export function buildRequest(body = {}) {
     .replace('{clarifications}', () => clarifications || 'none')
     .replace('{detail}', () => detail || 'none');
 
-  const systemInstruction = `${SYSTEM}\n\n${learningInstructions(learning)}`;
+  const planning = activityGuidance({ intent: body.intent, learning, history });
+  const systemInstruction = `${SYSTEM}\n\n${learningInstructions(learning)}${planning ? `\n\n${planning}` : ''}`;
 
   const stats = body.intent === 'summary' ? statsLine(body.stats) : '';
   const contents = `Student's topic or question: ${topic}\n\nSession so far:\n${transcript || '(nothing yet)'}${stats}\n\nTask now: ${task}`;
