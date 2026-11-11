@@ -20,6 +20,7 @@ access controls.
 | `shared/learning.mjs` | Preference IDs, defaults, and validation |
 | `shared/conversation.mjs` | History limits, supported intents, and clarification labels |
 | `shared/turns.mjs` | Validate/normalize tutor cards and quizzes before rendering |
+| `shared/activity-prompt.mjs` | Separate activity tasks from context, including legacy messages, for rendering and history |
 | `server/index.js` | Read environment configuration and start the listener |
 | `server/app.js` | HTTP routes, request cancellation, and JSON error responses |
 | `server/tutor.js` | Validate tutor input and build teaching instructions/schema |
@@ -84,3 +85,13 @@ explanation turns; the model still decides readiness from context. Ordinary
 "explain" requests do not implicitly opt out. Clarification and existing attempts
 take precedence, and Low/all-off disables unsolicited activities. No extra
 planning call or background generation is introduced.
+
+## Activity presentation
+
+New non-quiz tasks use `activity_prompt`, with introductory context in `message`.
+The UI renders questions in a labeled, bordered **Your turn** block with larger,
+stronger text; quiz questions use the same treatment. Legacy activity cards can
+extract a final question or an invitation such as "In your own words" from the
+message. Ordinary explanation text is not rewritten. A key-idea box is hidden
+alongside a task/unanswered quiz to avoid revealing the answer. History mirrors
+the visible task and does not include that hidden takeaway.

@@ -1,5 +1,6 @@
-import { GraduationCap, Lightbulb } from 'lucide-react';
+import { GraduationCap, HelpCircle, Lightbulb } from 'lucide-react';
 import { describeStats } from '../api.js';
+import { activityPresentation } from '../../../shared/activity-prompt.mjs';
 
 const LABELS = {
   diagnostic: 'Prior knowledge check',
@@ -23,12 +24,21 @@ function Bullets({ title, items }) {
   );
 }
 
+function ActivityPrompt({ children }) {
+  return (
+    <section className="activity-prompt" aria-label="Your turn">
+      <h3 className="activity-prompt-label"><HelpCircle size={18} aria-hidden="true" /> Your turn</h3>
+      <p className="activity-prompt-question">{children}</p>
+    </section>
+  );
+}
+
 function Quiz({ quiz, picked, onPick }) {
   const done = picked != null;
   const right = picked === quiz.correct_id;
   return (
     <div className="quiz">
-      <p className="q">{quiz.question}</p>
+      <ActivityPrompt>{quiz.question}</ActivityPrompt>
       <div className="opts" role="group" aria-label="Answer choices">
         {quiz.options.map((o) => {
           const state = !done ? '' : o.id === quiz.correct_id ? 'correct' : o.id === picked ? 'wrong' : 'dim';
@@ -51,6 +61,7 @@ function Quiz({ quiz, picked, onPick }) {
 
 export default function TurnCard({ turn, onFill, onSendSuggestion, requestBusy, onQuizAnswer, onRetry }) {
   if (turn.role === 'student') return <div className="student">{turn.text}</div>;
+  const { message, prompt } = activityPresentation(turn);
 
   return (
     <article className="tutor">
@@ -60,8 +71,9 @@ export default function TurnCard({ turn, onFill, onSendSuggestion, requestBusy, 
         <span className={`tag ${turn.kind === 'error' ? 'bad' : ''}`}>{LABELS[turn.kind] || 'Tutor'}</span>
       </div>
       <div className="card">
-        {turn.message && <p className="msg">{turn.message}</p>}
-        {turn.key_idea && (
+        {message && <p className="msg">{message}</p>}
+        {prompt && <ActivityPrompt>{prompt}</ActivityPrompt>}
+        {turn.key_idea && !prompt && !(turn.quiz && turn.picked == null) && (
           <p className="keyidea"><Lightbulb size={16} aria-hidden="true" /> {turn.key_idea}</p>
         )}
         {turn.quiz && <Quiz quiz={turn.quiz} picked={turn.picked} onPick={(id) => onQuizAnswer(turn.id, id)} />}

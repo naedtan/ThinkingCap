@@ -27,6 +27,7 @@ export function activityGuidance({ intent, learning, history }) {
 - Choose the selected activity that best fits the concept and the student\'s response. Vary among selected types over time when useful; do not always fall back to guided questions. Do not introduce an unselected activity unless explicitly requested.
 - Introduce the actual question, exercise, or quiz now. Do not merely ask "Would you like a quiz/practice problem?" or wait for the student to request one. You may give a brief explanation first in message, then the activity.
 - For quizzes, use kind "quiz" and populate quiz with the question, options, correct_id, and explanation. For practice use kind "practice"; for teach-back use kind "teachback"; for guided questions use kind "hint" or "diagnostic". Each response contains at most one activity.
+- Put non-quiz questions and exercise instructions in activity_prompt so the interface can highlight the student's task separately from message. Leave key_idea null while asking; do not put the answer in a takeaway or introductory explanation.
 - A routine request such as "explain binary search" does not turn off automatic activities. Only an explicit request to skip activities or receive an explanation only overrides them. Always provide requested explanations instead of withholding help behind a question.
 ${['practice', 'teachback', 'diagnostic', 'hint'].includes(lastTutor?.kind)
     ? '- The most recent tutor turn asked the student to think or attempt something. Address their answer or need for help before introducing another task.' : ''}

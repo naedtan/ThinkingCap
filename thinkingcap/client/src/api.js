@@ -1,5 +1,6 @@
 import { HISTORY_WINDOWS, CLARIFY_TEXT } from '../../shared/conversation.mjs';
 import { normalizeTurn } from '../../shared/turns.mjs';
+import { activityPresentation } from '../../shared/activity-prompt.mjs';
 export { CLARIFY_TEXT } from '../../shared/conversation.mjs';
 
 export async function askTutor(payload, { signal } = {}) {
@@ -33,8 +34,10 @@ export function toHistory(turns, intent = 'reply') {
   return recent.reverse()
     .map((t) => {
       if (t.role === 'student') return { role: 'student', text: t.text.slice(0, window.chars) };
-      let text = t.message || '';
-      if (t.key_idea) text += ` Key idea: ${t.key_idea}`;
+      const { message, prompt } = activityPresentation(t);
+      let text = message;
+      if (prompt) text += ` Your turn: ${prompt}`;
+      if (t.key_idea && !prompt && !(t.quiz && t.picked == null)) text += ` Key idea: ${t.key_idea}`;
       if (t.strengths?.length) text += ` Strengths: ${t.strengths.join('; ')}.`;
       if (t.missing?.length) text += ` Missing or shaky: ${t.missing.join('; ')}.`;
       if (t.quiz) {

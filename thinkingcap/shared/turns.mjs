@@ -16,14 +16,17 @@ function normalizeQuiz(raw) {
 }
 
 export function normalizeTurn(raw) {
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw) || !text(raw.message)) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
     throw new TypeError('The tutor returned an invalid or empty response.');
   }
   const quiz = normalizeQuiz(raw.quiz);
   const kind = KINDS.includes(raw.kind) ? raw.kind : 'concept';
+  const prompt = !quiz ? text(raw.activity_prompt) : '';
+  if (!text(raw.message) && !prompt && !quiz) throw new TypeError('The tutor returned an invalid or empty response.');
   return {
     kind: kind === 'quiz' && !quiz ? 'concept' : kind,
     message: text(raw.message),
+    activity_prompt: prompt || null,
     key_idea: text(raw.key_idea) || null,
     suggestions: Array.isArray(raw.suggestions) ? raw.suggestions
       .filter((suggestion) => text(suggestion?.title) && text(suggestion?.prompt))

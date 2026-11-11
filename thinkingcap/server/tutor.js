@@ -19,6 +19,7 @@ export const tutorSchema = {
   properties: {
     kind: { type: Type.STRING, enum: KINDS },
     message: { type: Type.STRING },
+    activity_prompt: { type: Type.STRING, nullable: true },
     key_idea: { type: Type.STRING, nullable: true },
     suggestions: {
       type: Type.ARRAY,
@@ -99,6 +100,8 @@ Rules:
 - Build on what the student has said. Do not repeat what they already know.
 - Be accurate. If the student is wrong, say so kindly and explain the gap. Ask a guiding question only when appropriate to the current preferences or request.
 - Work for any academic subject.
+- For a guided question, prior-knowledge check, teach-back, or practice activity, put the exact question or task in activity_prompt. Keep message for brief context, not the question. Never bury the task inside an explanatory paragraph or repeat it in message. For a quiz, use quiz.question and leave activity_prompt null.
+- When posing an activity, leave key_idea null and do not reveal its answer in message, suggestions, or a takeaway. Provide feedback and the takeaway after the student attempts it. Explanation-only turns leave activity_prompt null.
 - Only fill the fields the task asks for. Leave the others null.`;
 
 const DIRECTIVES = {
@@ -111,9 +114,9 @@ const DIRECTIVES = {
   quiz:
     'Use kind "quiz". Write one multiple-choice question testing the idea just discussed, with 3 options (ids "a", "b", "c"), plausible distractors based on common misconceptions, exactly one correct_id, and an explanation of why it is right and why the best distractor is not. message is a one-sentence lead-in.',
   teachback:
-    'Use kind "teachback". Invite the student to explain the concept in their own words, as if teaching a friend. Do not explain it yourself. Give 3 suggestions (a title plus a guiding question naming a part they could cover) and 2 to 3 sentence starters in starters.',
+    'Use kind "teachback". In activity_prompt, invite the student to explain the concept in their own words, as if teaching a friend. Keep message to a short introduction without the answer. Do not explain it yourself. Give 3 suggestions (a title plus a guiding question naming a part they could cover) and 2 to 3 sentence starters in starters. Leave key_idea null.',
   practice:
-    'Use kind "practice". Give one new short problem or prompt about this topic for the student to try on their own. Do not include the solution. Add 1 or 2 starters if useful.',
+    'Use kind "practice". Put one new short problem or prompt in activity_prompt for the student to try on their own. Use message only for a brief introduction. Do not include the solution or a key_idea. Add 1 or 2 starters if useful.',
   summary:
     'Use kind "summary" for the whole session so far. message is a two-sentence recap of the main topics. Put 2 to 4 short ideas in learned; prefix any idea that was only explained to the student, not demonstrated by them (a right quiz answer or a solid teach-back), with "Covered:". Put 1 to 3 short items in keep_working_on, grounded in wrong quiz answers, teach-back gaps, or repeated clarification requests. Never claim mastery the transcript does not show. If the session is very short, say so and keep the lists short.',
 };

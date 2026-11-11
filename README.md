@@ -84,6 +84,8 @@ The separate "Give me a hint" button and `stuck` API intent have been removed. E
 
 - `intent` is one of `start`, `reply`, `clarify`, `quiz`, `teachback`, `practice`, `summary`.
 - `turn.kind` is one of `diagnostic`, `concept`, `hint`, `quiz`, `teachback`, `feedback`, `practice`, `summary`.
+- Non-quiz activity questions/tasks use `turn.activity_prompt`, separate from the short introductory `message`. The UI emphasizes the task in a larger, bordered **Your turn** block. Quizzes use `quiz.question` with the same visual treatment. Existing activity messages fall back to extracting a trailing question or a recognizable activity invitation, so saved conversations benefit too.
+- Activity turns suppress the key-idea box while asking, to avoid displaying a takeaway that reveals the answer. The model is instructed to leave `key_idea` empty until feedback; hidden takeaways are also omitted from the transcript sent back to the tutor.
 - The server validates preferences on every request, builds the current system instructions, adds a per-intent directive and conversation history, and asks Gemini for JSON matching `tutorSchema`. `normalizeTurn` cleans the result before it reaches the UI.
 - Missing preference fields use defaults. Supplied invalid known values (including non-boolean activity flags) return HTTP 400. Unknown fields and activity IDs are discarded and never become prompt instructions. Legacy `modes` no longer affects teaching behavior.
 - `shared/learning.mjs` defines the allowed values and defaults for both browser storage and server validation. Malformed saved preferences are repaired field by field in the browser.
