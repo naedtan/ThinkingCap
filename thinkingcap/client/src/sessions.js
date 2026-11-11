@@ -1,5 +1,6 @@
 import { normalizeTurn } from '../../shared/turns.mjs';
 import { TUTOR_INTENTS } from '../../shared/conversation.mjs';
+import { cleanMaterial } from '../../shared/materials.mjs';
 
 const isObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 const nonempty = (value) => typeof value === 'string' && value.trim().length > 0;
@@ -7,7 +8,11 @@ const nonempty = (value) => typeof value === 'string' && value.trim().length > 0
 function restoreTurn(turn, fallbackId) {
   if (!isObject(turn)) return null;
   const id = nonempty(turn.id) ? turn.id : fallbackId;
-  if (turn.role === 'student') return typeof turn.text === 'string' ? { id, role: 'student', text: turn.text } : null;
+  if (turn.role === 'student') {
+    if (typeof turn.text !== 'string') return null;
+    const attachments = Array.isArray(turn.attachments) ? turn.attachments.filter(nonempty) : [];
+    return attachments.length ? { id, role: 'student', text: turn.text, attachments } : { id, role: 'student', text: turn.text };
+  }
   if (turn.role !== 'tutor' || turn.kind === 'modes') return null;
   if (turn.kind === 'error') {
     // Retired hint-button requests resume through the current clarification flow.
@@ -43,8 +48,10 @@ export function migrateStore(saved) {
     const topic = nonempty(session.topic) ? session.topic : turns.find((turn) => turn.role === 'student')?.text;
     if (!nonempty(topic)) continue;
     seen.add(session.id);
+    // Expired files are kept so the composer can say which ones to add again.
+    const materials = (Array.isArray(session.materials) ? session.materials : []).map(cleanMaterial).filter(Boolean);
     sessions.push({ ...session, topic, title: nonempty(session.title) ? session.title : topic.slice(0, 36),
-      courseId: courseIds.has(session.courseId) ? session.courseId : null, turns });
+      courseId: courseIds.has(session.courseId) ? session.courseId : null, turns, materials });
   }
   return { courses, sessions, activeId: seen.has(input.activeId) ? input.activeId : null };
 }

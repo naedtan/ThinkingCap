@@ -5,7 +5,9 @@ import Welcome from './components/Welcome.jsx';
 import Thread from './components/Thread.jsx';
 import Composer from './components/Composer.jsx';
 import LearningPreferences from './components/LearningPreferences/LearningPreferences.jsx';
-import { clarifyMessage, computeStats } from './api.js';
+import MaterialViewer from './components/MaterialViewer.jsx';
+import { deleteMaterialFile, pruneMaterialFiles } from './materialFiles.js';
+import { clarifyMessage, computeStats, materialOnlyMessage } from './api.js';
 import { normalizeLearning } from '../../shared/learning.mjs';
 import { migrateStore, needsStart } from './sessions.js';
 import useStoredState from './hooks/useStoredState.js';
@@ -24,6 +26,12 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true); // Left side panel
   const [learning, setLearning] = useStoredState(LEARNING_STORE, normalizeLearning);
   const [learningPanelOpen, setLearningPanelOpen] = useState(true);
+  const [viewing, setViewing] = useState(null); // The material shown in the preview dialog.
+
+  // Once per load, drop saved file copies that no session refers to.
+  useEffect(() => {
+    pruneMaterialFiles(store.sessions.flatMap((s) => (s.materials || []).map((m) => m.id)));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     document.documentElement.style.setProperty('--text-scale', prefs.textScale);
@@ -57,9 +65,14 @@ export default function App() {
     setStore((s) => ({ ...s, courses: [...s.courses, { id: uid(), name: name.trim() }] }));
   }
 
-  function submit(text) {
-    const t = text.trim();
-    if (!t || isBusy()) return;
+  // `attached` holds material records the composer already uploaded. Returns
+  // whether the message was sent, so the composer knows to clear its files.
+  function submit(text, attached = []) {
+    let t = text.trim();
+    if ((!t && !attached.length) || isBusy()) return false;
+    const names = attached.map((m) => m.name);
+    if (!t) t = materialOnlyMessage(names);
+    const studentTurn = { id: uid(), role: 'student', text: t, ...(names.length ? { attachments: names } : {}) };
     setDraft('');
     if (!active) {
       // Start immediately using the preferences in the sidebar.
@@ -68,18 +81,29 @@ export default function App() {
         title: t.length > 36 ? `${t.slice(0, 34)}…` : t,
         topic: t,
         courseId: pendingCourse,
-        turns: [
-          { id: uid(), role: 'student', text: t },
-        ],
+        turns: [studentTurn],
+        materials: attached,
       };
       setStore((s) => ({ ...s, sessions: [session, ...s.sessions], activeId: session.id }));
-      run({ sessionId: session.id, intent: 'start', turns: session.turns, topic: session.topic });
-      return;
+      run({ sessionId: session.id, intent: 'start', turns: session.turns, topic: session.topic, materials: session.materials });
+      return true;
     }
-    const turns = [...active.turns, { id: uid(), role: 'student', text: t }];
-    patchSession(active.id, (s) => ({ ...s, turns }));
-    run({ sessionId: active.id, intent: needsStart(active.turns) ? 'start' : 'reply', turns, topic: active.topic });
+    const turns = [...active.turns, studentTurn];
+    const materials = [...(active.materials || []), ...attached];
+    patchSession(active.id, (s) => ({ ...s, turns, materials }));
+    run({ sessionId: active.id, intent: needsStart(active.turns) ? 'start' : 'reply', turns, topic: active.topic, materials });
+    return true;
   }
+
+  // Stop citing a file in this session. The file itself expires on Gemini's side.
+  function removeMaterial(materialId) {
+    if (!active) return;
+    patchSession(active.id, (s) => ({ ...s, materials: (s.materials || []).filter((m) => m.id !== materialId) }));
+    deleteMaterialFile(materialId);
+  }
+
+  // Message bubbles store file names; find the newest session file with that name.
+  const findMaterial = (name) => active?.materials?.findLast((m) => m.name === name) || null;
 
   function intent(name, extra) {
     if (isBusy() || !active) return;
@@ -90,7 +114,7 @@ export default function App() {
       patchSession(active.id, (s) => ({ ...s, turns }));
     }
     const payload = name === 'summary' ? { ...extra, stats: computeStats(turns) } : extra;
-    run({ sessionId: active.id, intent: name, turns, topic: active.topic, extra: payload });
+    run({ sessionId: active.id, intent: name, turns, topic: active.topic, extra: payload, materials: active.materials });
   }
 
   // Re-send the request behind an error card. The student's own turn is already in the thread.
@@ -104,6 +128,7 @@ export default function App() {
       turns,
       topic: active.topic,
       extra: errorTurn.retry.extra,
+      materials: active.materials,
     });
   }
 
@@ -129,6 +154,9 @@ export default function App() {
       inSession={Boolean(active)}
       canSummarize={canSummarize}
       onIntent={intent}
+      materials={active?.materials || []}
+      onRemoveMaterial={removeMaterial}
+      onViewMaterial={setViewing}
     />
   );
 
@@ -177,6 +205,8 @@ export default function App() {
               onIntent={intent}
               onRetry={retry}
               onNew={() => openNew(active.courseId)}
+              findMaterial={findMaterial}
+              onViewMaterial={setViewing}
             />
             <div className="dock">
               <div className="dock-inner">{composer}</div>
@@ -186,6 +216,7 @@ export default function App() {
           <Welcome>{composer}</Welcome>
         )}
       </main>
+      {viewing && <MaterialViewer material={viewing} onClose={() => setViewing(null)} />}
       <div className="prefs-wrap">
         <LearningPreferences
           value={learning}

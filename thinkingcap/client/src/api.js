@@ -1,6 +1,7 @@
 import { HISTORY_WINDOWS, CLARIFY_TEXT } from '../../shared/conversation.mjs';
 import { normalizeTurn } from '../../shared/turns.mjs';
 import { activityPresentation } from '../../shared/activity-prompt.mjs';
+import { ATTACHED_NOTE, MATERIAL_LIMITS, REMOVED_NOTE, materialMimeType } from '../../shared/materials.mjs';
 export { CLARIFY_TEXT } from '../../shared/conversation.mjs';
 
 export async function askTutor(payload, { signal } = {}) {
@@ -15,6 +16,28 @@ export async function askTutor(payload, { signal } = {}) {
   return normalizeTurn(data.turn);
 }
 
+// Send one file to the server, which stores it in the Gemini Files API.
+// Returns the small record kept in the session ({ id, name, mimeType, uri, ... }).
+export async function uploadMaterial(file, { signal } = {}) {
+  const mimeType = materialMimeType(file.name, file.type);
+  if (!mimeType) throw new Error(`${file.name} is not a supported file type.`);
+  if (file.size > MATERIAL_LIMITS.bytes) throw new Error(`${file.name} is larger than 20 MB.`);
+  const res = await fetch('/api/materials', {
+    method: 'POST',
+    headers: { 'Content-Type': mimeType, 'X-Material-Name': encodeURIComponent(file.name) },
+    body: file,
+    signal,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `Could not upload ${file.name}.`);
+  return data.material;
+}
+
+// What the student "says" when they send files without typing anything.
+export function materialOnlyMessage(names) {
+  return `Help me study the material I attached: ${names.join(', ')}.`;
+}
+
 // The line a student "says" when they ask for clarification, so it shows in the thread and in history.
 export function clarifyMessage({ clarifications = [], detail = '' } = {}) {
   const asked = clarifications.filter((c) => Object.hasOwn(CLARIFY_TEXT, c)).map((c) => CLARIFY_TEXT[c]).join(', ');
@@ -25,7 +48,10 @@ export function clarifyMessage({ clarifications = [], detail = '' } = {}) {
 }
 
 // Flatten the on-screen turns into the plain transcript the server expects.
-export function toHistory(turns, intent = 'reply') {
+// `materials` are the files still attached; notes about other files say they
+// are gone, so the tutor never counts a removed or expired file.
+export function toHistory(turns, intent = 'reply', materials = null) {
+  const available = materials ? new Set(materials.map((m) => m.name)) : null;
   const window = HISTORY_WINDOWS[intent] || HISTORY_WINDOWS.default;
   const recent = [];
   for (let i = turns.length - 1; i >= 0 && recent.length < window.turns; i--) {
@@ -33,7 +59,13 @@ export function toHistory(turns, intent = 'reply') {
   }
   return recent.reverse()
     .map((t) => {
-      if (t.role === 'student') return { role: 'student', text: t.text.slice(0, window.chars) };
+      if (t.role === 'student') {
+        const kept = (t.attachments || []).filter((name) => !available || available.has(name));
+        const gone = (t.attachments || []).filter((name) => available && !available.has(name));
+        let files = kept.length ? ` ${ATTACHED_NOTE}${kept.join(', ')}]` : '';
+        if (gone.length) files += ` ${REMOVED_NOTE}${gone.join(', ')}]`;
+        return { role: 'student', text: `${t.text}${files}`.slice(0, window.chars) };
+      }
       const { message, prompt } = activityPresentation(t);
       let text = message;
       if (prompt) text += ` Your turn: ${prompt}`;

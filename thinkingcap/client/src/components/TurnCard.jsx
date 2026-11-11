@@ -1,4 +1,4 @@
-import { GraduationCap, HelpCircle, Lightbulb } from 'lucide-react';
+import { GraduationCap, HelpCircle, Lightbulb, Paperclip } from 'lucide-react';
 import { describeStats } from '../api.js';
 import { activityPresentation } from '../../../shared/activity-prompt.mjs';
 
@@ -59,8 +59,33 @@ function Quiz({ quiz, picked, onPick }) {
   );
 }
 
-export default function TurnCard({ turn, onFill, onSendSuggestion, requestBusy, onQuizAnswer, onRetry }) {
-  if (turn.role === 'student') return <div className="student">{turn.text}</div>;
+export default function TurnCard({ turn, onFill, onSendSuggestion, requestBusy, onQuizAnswer, onRetry, findMaterial, onViewMaterial }) {
+  if (turn.role === 'student') {
+    return (
+      <div className="student">
+        {turn.text}
+        {turn.attachments?.length > 0 && (
+          <ul className="student-files" aria-label="Attached material">
+            {turn.attachments.map((name, i) => {
+              // Removed files stay listed but are no longer clickable.
+              const material = findMaterial?.(name);
+              return (
+                <li key={i}>
+                  {material ? (
+                    <button className="student-file" onClick={() => onViewMaterial(material)} aria-label={`View ${name}`}>
+                      <Paperclip size={12} aria-hidden="true" /> {name}
+                    </button>
+                  ) : (
+                    <><Paperclip size={12} aria-hidden="true" /> {name}</>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+    );
+  }
   const { message, prompt } = activityPresentation(turn);
 
   return (
