@@ -1,25 +1,23 @@
-export async function askTutor(payload) {
+import { HISTORY_WINDOWS, CLARIFY_TEXT } from '../../shared/conversation.mjs';
+import { normalizeTurn } from '../../shared/turns.mjs';
+import { activityPresentation } from '../../shared/activity-prompt.mjs';
+export { CLARIFY_TEXT } from '../../shared/conversation.mjs';
+
+export async function askTutor(payload, { signal } = {}) {
   const res = await fetch('/api/tutor', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
+    signal,
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || 'The tutor could not respond.');
-  return data.turn;
+  return normalizeTurn(data.turn);
 }
-
-// Plain-language names for the clarification options. The server keeps its own copy for prompts.
-export const CLARIFY_TEXT = {
-  simple: 'explain it more simply',
-  example: 'show a concrete example',
-  why: 'explain why it works',
-  deeper: 'go deeper',
-};
 
 // The line a student "says" when they ask for clarification, so it shows in the thread and in history.
 export function clarifyMessage({ clarifications = [], detail = '' } = {}) {
-  const asked = clarifications.map((c) => CLARIFY_TEXT[c]).filter(Boolean).join(', ');
+  const asked = clarifications.filter((c) => Object.hasOwn(CLARIFY_TEXT, c)).map((c) => CLARIFY_TEXT[c]).join(', ');
   const note = detail.trim();
   if (asked && note) return `Help me understand this better: ${asked}. ${note}`;
   if (asked) return `Help me understand this better: ${asked}.`;
@@ -27,17 +25,24 @@ export function clarifyMessage({ clarifications = [], detail = '' } = {}) {
 }
 
 // Flatten the on-screen turns into the plain transcript the server expects.
-export function toHistory(turns) {
-  return turns
-    .filter((t) => t.kind !== 'modes' && t.kind !== 'error')
+export function toHistory(turns, intent = 'reply') {
+  const window = HISTORY_WINDOWS[intent] || HISTORY_WINDOWS.default;
+  const recent = [];
+  for (let i = turns.length - 1; i >= 0 && recent.length < window.turns; i--) {
+    if (!['modes', 'error'].includes(turns[i].kind)) recent.push(turns[i]);
+  }
+  return recent.reverse()
     .map((t) => {
-      if (t.role === 'student') return { role: 'student', text: t.text };
-      let text = t.message || '';
-      if (t.key_idea) text += ` Key idea: ${t.key_idea}`;
+      if (t.role === 'student') return { role: 'student', text: t.text.slice(0, window.chars) };
+      const { message, prompt } = activityPresentation(t);
+      let text = message;
+      if (prompt) text += ` Your turn: ${prompt}`;
+      if (t.key_idea && !prompt && !(t.quiz && t.picked == null)) text += ` Key idea: ${t.key_idea}`;
       if (t.strengths?.length) text += ` Strengths: ${t.strengths.join('; ')}.`;
       if (t.missing?.length) text += ` Missing or shaky: ${t.missing.join('; ')}.`;
       if (t.quiz) {
         text += ` Quiz: ${t.quiz.question}`;
+        text += ` Options: ${t.quiz.options.map((option) => `${option.id}: ${option.text}`).join('; ')}.`;
         if (t.picked != null) {
           const ok = t.picked === t.quiz.correct_id;
           text += ` Student picked ${t.picked} (${ok ? 'correct' : 'incorrect'}).`;
@@ -45,7 +50,7 @@ export function toHistory(turns) {
           text += ' Student has not answered yet.';
         }
       }
-      return { role: 'tutor', kind: t.kind, text };
+      return { role: 'tutor', kind: t.kind, text: text.slice(0, window.chars) };
     })
     .filter((t) => t.text);
 }
@@ -61,7 +66,7 @@ export function computeStats(turns) {
       stats.quizzes += 1;
       if (t.picked === t.quiz.correct_id) stats.quizzesCorrect += 1;
     }
-    if (t.intent === 'stuck') stats.hints += 1;
+    if (t.intent === 'stuck') stats.hints += 1; // Historical requests from the retired hint button.
     if (t.intent === 'clarify') stats.clarifications += 1;
     if (t.kind === 'feedback') {
       if (previousTutorKind === 'teachback') stats.teachbacks += 1;

@@ -155,9 +155,6 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
 /* Welcome */
 h1 { font-size: var(--fs-h1); font-weight: var(--w-strong); letter-spacing: -0.02em; line-height: 1.15; }
 .lede { color: var(--muted); max-width: 34rem; }
-.how { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem 1rem; font-size: var(--fs-sm); color: var(--muted); }
-.how li { display: inline-flex; align-items: center; gap: 0.4rem; }
-.num { display: inline-grid; place-items: center; width: 1.2rem; height: 1.2rem; border-radius: 50%; background: var(--card); border: 1px solid var(--line); font-size: var(--fs-xs); font-weight: var(--w-strong); color: var(--ink); }
 
 /* Composer */
 .composer-wrap { width: 100%; text-align: left; display: flex; flex-direction: column; gap: 0.6rem; }
@@ -188,6 +185,10 @@ h1 { font-size: var(--fs-h1); font-weight: var(--w-strong); letter-spacing: -0.0
 .tag.bad { background: var(--bad); color: var(--bad-ink); }
 .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 1rem 1.1rem; display: flex; flex-direction: column; gap: 0.8rem; }
 .msg { max-width: 65ch; white-space: pre-wrap; }
+.activity-prompt { background: var(--lav); border: 1px solid var(--lav-ink); border-left-width: 4px; border-radius: 12px; padding: 0.85rem 1rem; }
+.activity-prompt-label { display: flex; align-items: center; gap: 0.4rem; color: var(--lav-ink); font-size: var(--fs-sm); font-weight: var(--w-strong); margin-bottom: 0.4rem; }
+.activity-prompt-label svg { flex: none; }
+.activity-prompt-question { color: var(--ink); font-size: var(--fs-h3); font-weight: var(--w-strong); line-height: 1.5; white-space: pre-wrap; }
 .keyidea { background: var(--peach); color: var(--peach-ink); border-radius: 12px; padding: 0.6rem 0.8rem; display: flex; gap: 0.5rem; align-items: flex-start; font-weight: var(--w-medium); font-size: var(--fs-md); }
 .keyidea svg { flex: none; margin-top: 0.2rem; }
 .suggest { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: 0.6rem; }
@@ -202,17 +203,7 @@ h1 { font-size: var(--fs-h1); font-weight: var(--w-strong); letter-spacing: -0.0
 .bullets li::before { content: '–'; position: absolute; left: 0; color: var(--muted); }
 .stats { font-size: 0.92rem; color: var(--muted); }
 
-/* Modes */
-.modes { border: 0; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.6rem; }
-.modes legend { padding: 0; margin-bottom: 0.6rem; }
-.mode { display: flex; gap: 0.7rem; align-items: flex-start; border: 1px solid var(--line); border-radius: 12px; padding: 0.6rem 0.8rem; cursor: pointer; }
-.mode.on { background: var(--lav); border-color: var(--lav-ink); }
-.mode input { margin-top: 0.3rem; accent-color: var(--lav-ink); width: 1.05rem; height: 1.05rem; }
-.mode small { display: block; color: var(--muted); font-size: var(--fs-sm); }
-.modes .btn-primary { align-self: flex-start; }
-
 /* Quiz */
-.q { font-weight: var(--w-medium); }
 .opts { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.6rem; }
 .opt { display: flex; gap: 0.7rem; align-items: center; text-align: left; background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 0.6rem 0.8rem; opacity: 1; }
 .opt:hover:not(:disabled) { border-color: var(--ink); }

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { clarifyMessage, computeStats, describeStats, toHistory } from './api.js';
+import { askTutor, clarifyMessage, computeStats, describeStats, toHistory } from './api.js';
 
 const quizTurn = (id, picked) => ({
   id,
@@ -9,6 +9,35 @@ const quizTurn = (id, picked) => ({
   message: 'Check.',
   quiz: { question: 'Q?', options: [{ id: 'a', text: 'A' }, { id: 'b', text: 'B' }], correct_id: 'a', explanation: 'x' },
   picked,
+});
+
+test('pending requests keep their snapshot while the next request sends updated preferences', async () => {
+  const originalFetch = globalThis.fetch;
+  const calls = [];
+  let finish;
+  globalThis.fetch = async (_url, options) => {
+    calls.push(JSON.parse(options.body));
+    if (calls.length === 1) await new Promise((resolve) => { finish = resolve; });
+    return { ok: true, json: async () => ({ turn: { kind: 'concept', message: 'An explanation.' } }) };
+  };
+  try {
+    const learning = { level: 'high', style: 'concise', types: { guided: true } };
+    const history = [{ role: 'student', text: 'Explain cells.' }];
+    const pending = askTutor({ intent: 'reply', topic: 'cells', history, learning });
+    learning.level = 'low';
+    learning.style = 'stepwise';
+    learning.types.guided = false;
+    await askTutor({ intent: 'reply', topic: 'cells', history, learning });
+    finish();
+    await pending;
+    assert.equal(calls[0].learning.level, 'high');
+    assert.equal(calls[0].learning.types.guided, true);
+    assert.deepEqual(calls[1].learning, learning);
+    assert.deepEqual(calls[0].history, calls[1].history);
+  } finally {
+    finish?.();
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test('clarifyMessage reads naturally with and without a note', () => {
@@ -62,4 +91,27 @@ test('describeStats is empty for an empty session and pluralizes', () => {
     describeStats({ quizzes: 1, quizzesCorrect: 1, hints: 2, clarifications: 1, teachbacks: 0, practice: 0 }),
     '1 quiz (1 correct) · 2 hints · 1 clarification',
   );
+});
+
+test('history transport is bounded before serialization and summaries keep a wider window', () => {
+  const turns = Array.from({ length: 2000 }, (_, index) => ({ role: 'student', text: `${index}:${'x'.repeat(2000)}` }));
+  const reply = toHistory(turns);
+  const summary = toHistory(turns, 'summary');
+  assert.equal(reply.length, 24);
+  assert.equal(summary.length, 60);
+  assert.ok(reply.every(({ text }) => text.length <= 1500));
+  assert.ok(summary.every(({ text }) => text.length <= 900));
+  assert.match(reply.at(-1).text, /^1999:/);
+  assert.match(reply[0].text, /^1976:/);
+});
+
+test('quiz history contains the options needed to understand the selected answer', () => {
+  const history = toHistory([quizTurn('quiz', 'b')]);
+  assert.match(history[0].text, /Options: a: A; b: B/);
+  assert.match(history[0].text, /Student picked b \(incorrect\)/);
+});
+
+test('a malformed successful HTTP response becomes an error instead of an empty card', async (t) => {
+  t.mock.method(globalThis, 'fetch', async () => ({ ok: true, json: async () => ({ turn: null }) }));
+  await assert.rejects(askTutor({}), /invalid or empty response/);
 });

@@ -12,9 +12,9 @@ import {
 import "./LearningPreferences.css";
 
 const LEVELS = {
-  low: "Mostly direct explanations, with few interactive activities.",
-  medium: "A balanced blend of explanations and occasional interactive activities.",
-  high: "Frequent questions, exercises, and check-ins throughout the session.",
+  low: "Mostly explanations. Activities appear only when you ask for them.",
+  medium: "Explanations with selected activities added automatically once you have material to try.",
+  high: "Frequent selected activities introduced automatically, with explanations and feedback between them.",
 };
 const LEVEL_BARS = { low: 1, medium: 2, high: 3 };
 
@@ -65,6 +65,20 @@ const onActivate = (fn) => (e) => {
   }
 };
 
+// Custom radio cards need the same arrow/Home/End navigation as native radios.
+// Only the selected choice is a Tab stop; switches remain independent controls.
+function onRadioKey(event) {
+  if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return;
+  const choices = [...event.currentTarget.querySelectorAll('[role="radio"]')];
+  const current = choices.indexOf(event.target.closest('[role="radio"]'));
+  if (current < 0) return;
+  event.preventDefault();
+  const direction = ['ArrowLeft', 'ArrowUp'].includes(event.key) ? -1 : 1;
+  const next = event.key === 'Home' ? 0 : event.key === 'End' ? choices.length - 1 : (current + direction + choices.length) % choices.length;
+  choices[next].focus();
+  choices[next].click();
+}
+
 export default function LearningPreferences({ value, onChange, collapsed, onToggle }) {
   const { level, types, style } = value;
 
@@ -81,7 +95,7 @@ export default function LearningPreferences({ value, onChange, collapsed, onTogg
         <span className="rail-divider" aria-hidden="true" />
 
         {/* Interaction level: 1, 2 or 3 filled bars */}
-        <div className="rail-group" role="radiogroup" aria-label="Interaction level">
+        <div className="rail-group" role="radiogroup" aria-label="Interaction level" onKeyDown={onRadioKey}>
           {Object.keys(LEVELS).map((key) => {
             const label = `${key[0].toUpperCase() + key.slice(1)} interaction`;
             return (
@@ -89,6 +103,7 @@ export default function LearningPreferences({ value, onChange, collapsed, onTogg
                 key={key}
                 role="radio"
                 aria-checked={level === key}
+                tabIndex={level === key ? 0 : -1}
                 aria-label={label}
                 data-tip={label}
                 className={`rail-btn has-tip ${level === key ? "is-on" : ""}`}
@@ -117,12 +132,13 @@ export default function LearningPreferences({ value, onChange, collapsed, onTogg
         <span className="rail-divider" aria-hidden="true" />
 
         {/* Explanation style */}
-        <div className="rail-group" role="radiogroup" aria-label="Explanation style">
+        <div className="rail-group" role="radiogroup" aria-label="Explanation style" onKeyDown={onRadioKey}>
           {EXPLANATION_STYLES.map(({ id, icon: Icon, title }) => (
             <button
               key={id}
               role="radio"
               aria-checked={style === id}
+              tabIndex={style === id ? 0 : -1}
               aria-label={title}
               data-tip={title}
               className={`rail-btn has-tip ${style === id ? "is-on" : ""}`}
@@ -142,6 +158,7 @@ export default function LearningPreferences({ value, onChange, collapsed, onTogg
         <div>
           <h2 className="lp-title">Learning Preferences</h2>
           <p className="lp-sub">Customize how ThinkingCap teaches you</p>
+          <p className="lp-sub">Changes apply to the next response.</p>
         </div>
         <button className="icon-btn" onClick={onToggle} aria-label="Close preferences">
           <PanelRight size={22} />
@@ -154,14 +171,15 @@ export default function LearningPreferences({ value, onChange, collapsed, onTogg
           <h3 className="lp-heading">
             <LevelsIcon size={18} /> Interaction Level
           </h3>
-          <p className="lp-hint">How often ThinkingCap checks in</p>
+          <p className="lp-hint">How often ThinkingCap introduces activities</p>
 
-          <div className="lp-segmented" role="radiogroup" aria-label="Interaction level">
+          <div className="lp-segmented" role="radiogroup" aria-label="Interaction level" onKeyDown={onRadioKey}>
             {Object.keys(LEVELS).map((key) => (
               <button
                 key={key}
                 role="radio"
                 aria-checked={level === key}
+                tabIndex={level === key ? 0 : -1}
                 className={level === key ? "is-active" : ""}
                 onClick={() => pickInteractionLevel(key)}
               >
@@ -169,7 +187,7 @@ export default function LearningPreferences({ value, onChange, collapsed, onTogg
               </button>
             ))}
           </div>
-          <p className="lp-note">{LEVELS[level]}</p>
+          <p className="lp-note" aria-live="polite">{LEVELS[level]}</p>
         </section>
 
         {/* Interaction types: the whole card is the switch */}
@@ -177,7 +195,7 @@ export default function LearningPreferences({ value, onChange, collapsed, onTogg
           <h3 className="lp-heading">
             <Brain size={18} /> Interaction Types
           </h3>
-          <p className="lp-hint">Interactive activities to include</p>
+          <p className="lp-hint">Activities ThinkingCap may introduce. You can still request any activity in the chat.</p>
 
           <div className="lp-stack">
             {INTERACTION_TYPES.map(({ id, icon: Icon, title, desc }) => (
@@ -200,6 +218,9 @@ export default function LearningPreferences({ value, onChange, collapsed, onTogg
               </div>
             ))}
           </div>
+          {!Object.values(types).some(Boolean) && (
+            <p className="lp-note" role="status">All activities are off. ThinkingCap will explain without introducing activities, at any interaction level. You can still ask for one.</p>
+          )}
         </section>
 
         {/* Explanation style */}
@@ -207,16 +228,16 @@ export default function LearningPreferences({ value, onChange, collapsed, onTogg
           <h3 className="lp-heading">
             <MessageSquareText size={18} /> Explanation Style
           </h3>
-          <p className="lp-hint">How concepts are explained</p>
+          <p className="lp-hint">How concepts are explained. Step-by-step changes the explanation, not how often activities appear.</p>
 
-          <div className="lp-stack" role="radiogroup" aria-label="Explanation style">
+          <div className="lp-stack" role="radiogroup" aria-label="Explanation style" onKeyDown={onRadioKey}>
             {EXPLANATION_STYLES.map(({ id, icon: Icon, title, desc }) => (
               <div
                 className={`lp-card lp-card-clickable ${style === id ? "is-selected" : ""}`}
                 key={id}
                 role="radio"
                 aria-checked={style === id}
-                tabIndex={0}
+                tabIndex={style === id ? 0 : -1}
                 onClick={() => pickExplanationStyle(id)}
                 onKeyDown={onActivate(() => pickExplanationStyle(id))}
               >
