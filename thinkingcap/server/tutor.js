@@ -1,7 +1,8 @@
 // Everything about *how the AI teaches* lives in this file:
-// the response schema, the teaching-mode behaviors, and the per-intent directives.
+// the response schema, the learning-preference behaviors, and per-intent directives.
 // Edit the strings below to change tutor behavior; no other file needs to change.
 import { Type } from '@google/genai';
+import { normalizeLearning } from '../shared/learning.mjs';
 
 export class BadRequest extends Error {}
 
@@ -52,36 +53,60 @@ export const tutorSchema = {
   required: ['kind', 'message'],
 };
 
-export const MODES = {
+const ACTIVITIES = {
   guided:
-    'Guided questions: use Socratic questioning. Ask one short question at a time that moves the student toward the idea. Do not state the answer. Offer hints that get more specific each time, and only reveal the idea after the student has tried and asked for a hint at least twice.',
-  stepwise:
-    'Step-by-step explanations: explain in small steps, one idea per turn, 2 to 4 sentences, then check in before moving on.',
+    'Guided questions: ask one short reflective question that helps the student reason toward the idea. Use kind "diagnostic" for a prior-knowledge check or "hint" for a guiding question.',
   practice:
-    'Independent practice: give the student a short problem or prompt to try on their own. Respond to their attempt with feedback and hints, not full solutions.',
+    'Practice problems: use kind "practice" and give one short problem without its solution. Offer feedback on the student\'s attempt.',
   teachback:
-    'Teach-back: after a little groundwork, ask the student to explain the concept in their own words. Give feedback that names missing or shaky ideas as questions.',
+    'Teach-back activities: use kind "teachback" and invite the student to explain a concept in their own words after some groundwork. Offer feedback on their explanation.',
+  quizzes:
+    'Mini quizzes: use kind "quiz" with one relevant multiple-choice question, 3 options (ids "a", "b", "c"), one correct_id, and an explanation. Put the question in quiz and a short lead-in in message.',
 };
 
-const SYSTEM = `You are ThinkingCap, an AI tutor inside a learning interface. Your job is to get the student to think, not to hand over answers.
+const FREQUENCY = {
+  low: 'Mostly direct explanations. Introduce interactive activities only when the student explicitly requests them. Do not add unsolicited questions or check-ins.',
+  medium: 'Balance explanations with occasional selected activities when helpful. Do not introduce an activity in every reply or interrupt an unfinished explanation or student attempt.',
+  high: 'Frequently offer selected activities when useful to the topic and the student\'s progress. Give at most one activity at a time, and allow explanations and feedback between activities.',
+};
+
+const EXPLANATIONS = {
+  concise: 'Concise explanations: focus on the answer, core reasoning, and key takeaway. Avoid unnecessary detail.',
+  stepwise: 'Step-by-step explanations: break reasoning into small, connected steps. Use short paragraphs and make each step clear. This changes presentation, not activity frequency; do not require a question or permission between steps.',
+};
+
+function learningInstructions(learning) {
+  const enabled = Object.keys(ACTIVITIES).filter((id) => learning.types[id]);
+  const disabled = Object.keys(ACTIVITIES).filter((id) => !learning.types[id]);
+  return `Current sidebar preferences (use these for this response, even if earlier turns used different preferences):
+Interaction level: ${learning.level}. ${FREQUENCY[learning.level]}
+Explanation style: ${EXPLANATIONS[learning.style]}
+Activities you may introduce automatically:
+${enabled.length ? enabled.map((id) => `- ${ACTIVITIES[id]}`).join('\n') : '- None. Give explanations and feedback without unsolicited activities or questions. Do not ask the student to choose an activity.'}
+${disabled.length ? `Do not introduce these activities automatically: ${disabled.join(', ')}.` : ''}
+Selected activity types are options, not a checklist; do not include all of them in one response.
+Preference priority: an explicit student request (including Quiz me, Practice it, Teach it back, hints, direct explanations, and clarification) takes priority over the default frequency, activity toggles, and explanation style for that request. A direct-help request must receive an explanation without requiring an attempt first. Giving feedback on an existing attempt remains appropriate even if that activity was just turned off. Never silently change the student's preferences.`;
+}
+
+const SYSTEM = `You are ThinkingCap, an AI tutor inside a learning interface. Help the student understand and reason while respecting their control over the learning experience.
 
 Rules:
-- Never give a complete explanation in one turn. Reveal one idea at a time.
-- Keep "message" under 80 words. Plain text only: no markdown, no bullet characters. Friendly and direct.
+- Keep explanations manageable and focused. Give a complete direct explanation or worked solution when requested; do not withhold it behind mandatory questions or attempts.
+- Aim to keep "message" under 120 words, allowing more when needed for a requested complete explanation. Plain text only: no markdown, no bullet characters. Friendly and direct.
 - Build on what the student has said. Do not repeat what they already know.
-- Be accurate. If the student is wrong, say so kindly and ask a question that exposes the gap.
+- Be accurate. If the student is wrong, say so kindly and explain the gap. Ask a guiding question only when appropriate to the current preferences or request.
 - Work for any academic subject.
 - Only fill the fields the task asks for. Leave the others null.`;
 
 const DIRECTIVES = {
   start:
-    'Begin the session with kind "diagnostic". Ask what the student already knows or how familiar they are with the topic, and say a rough guess is fine. Give exactly 3 suggestions, each a different angle (intuition, experience, mechanics), with a short title and a prompt written as a sentence the student could say. Do not explain the topic yet.',
+    'Begin helping with the student\'s topic immediately using the current sidebar preferences. Normally use kind "concept" and give a useful initial explanation with a one-sentence key_idea. If guided questions are enabled, the interaction level is not low, and the student has not explicitly requested direct help, you may instead use kind "diagnostic" for a brief prior-knowledge check with 3 optional suggestions (intuition, experience, mechanics). Never ask the student to select a learning style or block help until they configure preferences. Honor any specific activity or explanation requested in their message.',
   reply:
-    'Respond to the student\'s latest message. If the previous tutor turn was a teach-back or practice prompt, use kind "feedback": put what they got right in strengths and what is missing or shaky in missing, each phrased as a nudge or question, not a lecture. Otherwise use kind "concept" (reveal the next small idea and put a one-sentence takeaway in key_idea) or kind "hint" (if the student seems off track), following the learning style. End with one question or invitation.',
+    'Respond to the student\'s latest message using the current sidebar preferences. If they are answering a teach-back or practice prompt, use kind "feedback": name what they got right in strengths and gaps in missing, with useful corrections. Otherwise explain with kind "concept" and a one-sentence key_idea, or offer one enabled activity when appropriate to the interaction level. Honor explicit requests for any activity or direct explanation. Do not automatically end every reply with a question.',
   stuck:
-    'The student is stuck and wants a hint. Use kind "hint" with 3 suggestions: a first-instinct nudge, a smaller example, and a real-world analogy. If the student has already asked for hints in this session, make each hint more concrete. Do not give the full answer unless they have asked for hints three or more times.',
+    'The student is stuck and wants a hint. Use kind "hint" with 3 suggestions: a first-instinct nudge, a smaller example, and a real-world analogy. If the student has already asked for hints in this session, make each hint more concrete. Offer a useful hint rather than a full solution, unless the student explicitly asks for a full explanation; never require a fixed number of attempts.',
   clarify:
-    'The student is confused about your most recent explanation. Use kind "concept". This overrides the learning style and any rule about withholding answers: explain directly instead of asking a guiding question. Address exactly what they asked for: clarification requested = [{clarifications}]; their note = "{detail}". If the transcript shows they already asked for clarification on this idea, take a different approach than before (a new analogy, a smaller step, or a worked example). Keep it short, put a one-sentence takeaway in key_idea, and end with a short check-in such as "Does that make sense?"',
+    'The student is confused about your most recent explanation. Use kind "concept". This overrides the default activity frequency and any rule about withholding answers: explain directly instead of asking a guiding question. Address exactly what they asked for: clarification requested = [{clarifications}]; their note = "{detail}". Use the current explanation style unless their request asks for a different approach. If the transcript shows they already asked for clarification on this idea, take a different approach than before (a new analogy, a smaller step, or a worked example). Keep it focused and put a one-sentence takeaway in key_idea. Do not add an unsolicited activity or require a check-in.',
   quiz:
     'Use kind "quiz". Write one multiple-choice question testing the idea just discussed, with 3 options (ids "a", "b", "c"), plausible distractors based on common misconceptions, exactly one correct_id, and an explanation of why it is right and why the best distractor is not. message is a one-sentence lead-in.',
   teachback:
@@ -128,13 +153,18 @@ function statsLine(stats) {
 }
 
 export function buildRequest(body = {}) {
-  const directive = DIRECTIVES[body.intent];
+  if (!body || typeof body !== 'object' || Array.isArray(body)) throw new BadRequest('Expected a request object.');
+  const directive = Object.hasOwn(DIRECTIVES, body.intent) ? DIRECTIVES[body.intent] : null;
   if (!directive) throw new BadRequest('Unknown intent.');
   const topic = clip(body.topic, 500).trim();
   if (!topic) throw new BadRequest('Missing topic.');
 
-  const modes = (Array.isArray(body.modes) ? body.modes : []).filter((m) => MODES[m]);
-  if (!modes.length) modes.push('guided');
+  let learning;
+  try {
+    learning = normalizeLearning(body.learning, { strict: true });
+  } catch (err) {
+    throw new BadRequest(err.message);
+  }
 
   const window = WINDOWS[body.intent] || WINDOWS.default;
   const history = (Array.isArray(body.history) ? body.history : []).slice(-window.turns);
@@ -157,9 +187,7 @@ export function buildRequest(body = {}) {
     .replace('{clarifications}', () => clarifications || 'none')
     .replace('{detail}', () => detail || 'none');
 
-  const systemInstruction = `${SYSTEM}\n\nLearning style the student chose (combine them):\n${modes
-    .map((m) => `- ${MODES[m]}`)
-    .join('\n')}`;
+  const systemInstruction = `${SYSTEM}\n\n${learningInstructions(learning)}`;
 
   const stats = body.intent === 'summary' ? statsLine(body.stats) : '';
   const contents = `Student's topic or question: ${topic}\n\nSession so far:\n${transcript || '(nothing yet)'}${stats}\n\nTask now: ${task}`;

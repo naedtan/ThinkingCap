@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { clarifyMessage, computeStats, describeStats, toHistory } from './api.js';
+import { askTutor, clarifyMessage, computeStats, describeStats, toHistory } from './api.js';
 
 const quizTurn = (id, picked) => ({
   id,
@@ -9,6 +9,35 @@ const quizTurn = (id, picked) => ({
   message: 'Check.',
   quiz: { question: 'Q?', options: [{ id: 'a', text: 'A' }, { id: 'b', text: 'B' }], correct_id: 'a', explanation: 'x' },
   picked,
+});
+
+test('pending requests keep their snapshot while the next request sends updated preferences', async () => {
+  const originalFetch = globalThis.fetch;
+  const calls = [];
+  let finish;
+  globalThis.fetch = async (_url, options) => {
+    calls.push(JSON.parse(options.body));
+    if (calls.length === 1) await new Promise((resolve) => { finish = resolve; });
+    return { ok: true, json: async () => ({ turn: { kind: 'concept', message: 'An explanation.' } }) };
+  };
+  try {
+    const learning = { level: 'high', style: 'concise', types: { guided: true } };
+    const history = [{ role: 'student', text: 'Explain cells.' }];
+    const pending = askTutor({ intent: 'reply', topic: 'cells', history, learning });
+    learning.level = 'low';
+    learning.style = 'stepwise';
+    learning.types.guided = false;
+    await askTutor({ intent: 'reply', topic: 'cells', history, learning });
+    finish();
+    await pending;
+    assert.equal(calls[0].learning.level, 'high');
+    assert.equal(calls[0].learning.types.guided, true);
+    assert.deepEqual(calls[1].learning, learning);
+    assert.deepEqual(calls[0].history, calls[1].history);
+  } finally {
+    finish?.();
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test('clarifyMessage reads naturally with and without a note', () => {

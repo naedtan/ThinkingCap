@@ -1,5 +1,4 @@
 import { GraduationCap, Lightbulb } from 'lucide-react';
-import ModeSelector from './ModeSelector.jsx';
 import { describeStats } from '../api.js';
 
 const LABELS = {
@@ -11,7 +10,6 @@ const LABELS = {
   feedback: 'Feedback',
   practice: 'Practice',
   summary: 'Session summary',
-  modes: 'Learning style',
   error: 'Something went wrong',
 };
 
@@ -51,7 +49,7 @@ function Quiz({ quiz, picked, onPick }) {
   );
 }
 
-export default function TurnCard({ turn, onFill, onQuizAnswer, onChooseModes, onRetry }) {
+export default function TurnCard({ turn, onFill, onQuizAnswer, onRetry }) {
   if (turn.role === 'student') return <div className="student">{turn.text}</div>;
 
   return (
@@ -62,49 +60,43 @@ export default function TurnCard({ turn, onFill, onQuizAnswer, onChooseModes, on
         <span className={`tag ${turn.kind === 'error' ? 'bad' : ''}`}>{LABELS[turn.kind] || 'Tutor'}</span>
       </div>
       <div className="card">
-        {turn.kind === 'modes' ? (
-          <ModeSelector chosen={turn.chosen} onStart={onChooseModes} />
-        ) : (
-          <>
-            {turn.message && <p className="msg">{turn.message}</p>}
-            {turn.key_idea && (
-              <p className="keyidea"><Lightbulb size={16} aria-hidden="true" /> {turn.key_idea}</p>
-            )}
-            {turn.quiz && <Quiz quiz={turn.quiz} picked={turn.picked} onPick={(id) => onQuizAnswer(turn.id, id)} />}
-            {turn.suggestions?.length > 0 && (
-              <div className="suggest">
-                {turn.suggestions.map((s) => (
-                  <button key={s.title} className="suggest-card" onClick={() => onFill(s.prompt)}>
-                    <strong>{s.title}</strong>
-                    <span>{s.prompt}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-            {turn.starters?.length > 0 && (
-              <div className="starters">
-                <span>Sentence starters</span>
-                {turn.starters.map((s) => (
-                  <button key={s} className="chip" onClick={() => onFill(`${s} `)}>{s}</button>
-                ))}
-              </div>
-            )}
-            <Bullets title="What you got right" items={turn.strengths} />
-            <Bullets title="Worth another look" items={turn.missing} />
-            {turn.kind === 'summary' && describeStats(turn.stats) && (
-              <div className="bullets">
-                <h4>What you did</h4>
-                <p className="stats">{describeStats(turn.stats)}</p>
-              </div>
-            )}
-            <Bullets title="What you covered" items={turn.learned} />
-            <Bullets title="Keep working on" items={turn.keep_working_on} />
-            {turn.kind === 'error' && onRetry && turn.retry && (
-              <div className="actions">
-                <button className="btn-ghost" onClick={() => onRetry(turn)}>Try again</button>
-              </div>
-            )}
-          </>
+        {turn.message && <p className="msg">{turn.message}</p>}
+        {turn.key_idea && (
+          <p className="keyidea"><Lightbulb size={16} aria-hidden="true" /> {turn.key_idea}</p>
+        )}
+        {turn.quiz && <Quiz quiz={turn.quiz} picked={turn.picked} onPick={(id) => onQuizAnswer(turn.id, id)} />}
+        {turn.suggestions?.length > 0 && (
+          <div className="suggest">
+            {turn.suggestions.map((s) => (
+              <button key={s.title} className="suggest-card" onClick={() => onFill(s.prompt)}>
+                <strong>{s.title}</strong>
+                <span>{s.prompt}</span>
+              </button>
+            ))}
+          </div>
+        )}
+        {turn.starters?.length > 0 && (
+          <div className="starters">
+            <span>Sentence starters</span>
+            {turn.starters.map((s) => (
+              <button key={s} className="chip" onClick={() => onFill(`${s} `)}>{s}</button>
+            ))}
+          </div>
+        )}
+        <Bullets title="What you got right" items={turn.strengths} />
+        <Bullets title="Worth another look" items={turn.missing} />
+        {turn.kind === 'summary' && describeStats(turn.stats) && (
+          <div className="bullets">
+            <h4>What you did</h4>
+            <p className="stats">{describeStats(turn.stats)}</p>
+          </div>
+        )}
+        <Bullets title="What you covered" items={turn.learned} />
+        <Bullets title="Keep working on" items={turn.keep_working_on} />
+        {turn.kind === 'error' && onRetry && turn.retry && (
+          <div className="actions">
+            <button className="btn-ghost" onClick={() => onRetry(turn)}>Try again</button>
+          </div>
         )}
       </div>
     </article>

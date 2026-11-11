@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react';
 import TurnCard from './TurnCard.jsx';
+import { needsStart } from '../sessions.js';
 
-export default function Thread({ turns, busy, onFill, onQuizAnswer, onChooseModes, onIntent, onRetry, onNew }) {
+export default function Thread({ turns, busy, onFill, onQuizAnswer, onIntent, onRetry, onNew }) {
   const endRef = useRef(null);
   const last = turns.at(-1);
 
@@ -22,10 +23,14 @@ export default function Thread({ turns, busy, onFill, onQuizAnswer, onChooseMode
             turn={t}
             onFill={onFill}
             onQuizAnswer={onQuizAnswer}
-            onChooseModes={onChooseModes}
             onRetry={t === last && !busy ? onRetry : undefined}
           />
         ))}
+        {!busy && needsStart(turns) && last?.kind !== 'error' && (
+          <div className="actions">
+            <button className="btn-primary" onClick={() => onIntent('start')}>Continue learning</button>
+          </div>
+        )}
         {busy && <p className="thinking" role="status">ThinkingCap is thinking…</p>}
         {showActions && last.kind === 'summary' && (
           <div className="actions"><button className="btn-primary" onClick={onNew}>Start a new session</button></div>

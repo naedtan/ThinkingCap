@@ -17,11 +17,11 @@ app.get('/api/health', (_req, res) => res.json({ ok: true, model: MODEL, hasKey:
 // One endpoint drives the whole tutor. The client sends an "intent" (start, reply, stuck,
 // clarify, quiz, teachback, practice, summary) plus the session so far; the reply is one tutor turn.
 app.post('/api/tutor', async (req, res) => {
-  if (!ai) {
-    return res.status(500).json({ error: 'Missing GEMINI_API_KEY. Copy server/.env.example to server/.env and add your key.' });
-  }
   try {
     const { systemInstruction, contents } = buildRequest(req.body);
+    if (!ai) {
+      return res.status(500).json({ error: 'Missing GEMINI_API_KEY. Copy server/.env.example to server/.env and add your key.' });
+    }
     // Newer Gemini models reject temperature/top_p/top_k, so none are set here.
     const response = await ai.models.generateContent({
       model: MODEL,

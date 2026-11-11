@@ -12,9 +12,9 @@ import {
 import "./LearningPreferences.css";
 
 const LEVELS = {
-  low: "Mostly direct explanations, with few interactive activities.",
+  low: "Mostly explanations. Activities appear only when you ask for them.",
   medium: "A balanced blend of explanations and occasional interactive activities.",
-  high: "Frequent questions, exercises, and check-ins throughout the session.",
+  high: "Frequent selected activities when helpful, with explanations and feedback between them.",
 };
 const LEVEL_BARS = { low: 1, medium: 2, high: 3 };
 
@@ -142,6 +142,7 @@ export default function LearningPreferences({ value, onChange, collapsed, onTogg
         <div>
           <h2 className="lp-title">Learning Preferences</h2>
           <p className="lp-sub">Customize how ThinkingCap teaches you</p>
+          <p className="lp-sub">Changes apply to the next response.</p>
         </div>
         <button className="icon-btn" onClick={onToggle} aria-label="Close preferences">
           <PanelRight size={22} />
@@ -154,7 +155,7 @@ export default function LearningPreferences({ value, onChange, collapsed, onTogg
           <h3 className="lp-heading">
             <LevelsIcon size={18} /> Interaction Level
           </h3>
-          <p className="lp-hint">How often ThinkingCap checks in</p>
+          <p className="lp-hint">How often ThinkingCap introduces activities</p>
 
           <div className="lp-segmented" role="radiogroup" aria-label="Interaction level">
             {Object.keys(LEVELS).map((key) => (
@@ -169,7 +170,7 @@ export default function LearningPreferences({ value, onChange, collapsed, onTogg
               </button>
             ))}
           </div>
-          <p className="lp-note">{LEVELS[level]}</p>
+          <p className="lp-note" aria-live="polite">{LEVELS[level]}</p>
         </section>
 
         {/* Interaction types: the whole card is the switch */}
@@ -177,7 +178,7 @@ export default function LearningPreferences({ value, onChange, collapsed, onTogg
           <h3 className="lp-heading">
             <Brain size={18} /> Interaction Types
           </h3>
-          <p className="lp-hint">Interactive activities to include</p>
+          <p className="lp-hint">Activities ThinkingCap may introduce. You can still request any activity in the chat.</p>
 
           <div className="lp-stack">
             {INTERACTION_TYPES.map(({ id, icon: Icon, title, desc }) => (
@@ -200,6 +201,9 @@ export default function LearningPreferences({ value, onChange, collapsed, onTogg
               </div>
             ))}
           </div>
+          {!Object.values(types).some(Boolean) && (
+            <p className="lp-note" role="status">All activities are off. ThinkingCap will explain without introducing activities, at any interaction level. You can still ask for one.</p>
+          )}
         </section>
 
         {/* Explanation style */}
@@ -207,7 +211,7 @@ export default function LearningPreferences({ value, onChange, collapsed, onTogg
           <h3 className="lp-heading">
             <MessageSquareText size={18} /> Explanation Style
           </h3>
-          <p className="lp-hint">How concepts are explained</p>
+          <p className="lp-hint">How concepts are explained. Step-by-step changes the explanation, not how often activities appear.</p>
 
           <div className="lp-stack" role="radiogroup" aria-label="Explanation style">
             {EXPLANATION_STYLES.map(({ id, icon: Icon, title, desc }) => (
