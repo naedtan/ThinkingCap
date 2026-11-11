@@ -78,3 +78,18 @@ test('old hint cards remain readable and failed hint-button requests retry throu
   assert.equal(result.turns[1].retry.intent, 'clarify');
   assert.match(result.turns[1].retry.extra.detail, /help me understand/);
 });
+
+test('saved sessions keep valid material and student attachment names', () => {
+  const good = { id: 'files/a1', name: 'notes.pdf', mimeType: 'application/pdf',
+    uri: 'https://generativelanguage.googleapis.com/v1beta/files/a1', expiresAt: '2020-01-01T00:00:00Z' };
+  const store = migrateStore({ sessions: [{
+    id: 's1', topic: 'Cells',
+    materials: [good, { ...good, uri: 'https://example.com/x' }, 'junk'],
+    turns: [{ id: 't1', role: 'student', text: 'Explain cells.', attachments: ['notes.pdf', '', 3] }],
+  }] });
+  const [session] = store.sessions;
+  // The expired file is kept so the composer can ask for it again.
+  assert.deepEqual(session.materials.map((m) => m.id), ['files/a1']);
+  assert.deepEqual(session.turns[0].attachments, ['notes.pdf']);
+  assert.deepEqual(migrateStore({ sessions: [{ id: 's2', topic: 'x', turns: [] }] }).sessions[0].materials, []);
+});

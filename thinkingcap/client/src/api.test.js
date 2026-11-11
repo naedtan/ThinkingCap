@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { askTutor, clarifyMessage, computeStats, describeStats, toHistory } from './api.js';
+import { askTutor, clarifyMessage, computeStats, describeStats, materialOnlyMessage, toHistory } from './api.js';
 
 const quizTurn = (id, picked) => ({
   id,
@@ -114,4 +114,21 @@ test('quiz history contains the options needed to understand the selected answer
 test('a malformed successful HTTP response becomes an error instead of an empty card', async (t) => {
   t.mock.method(globalThis, 'fetch', async () => ({ ok: true, json: async () => ({ turn: null }) }));
   await assert.rejects(askTutor({}), /invalid or empty response/);
+});
+
+test('history tells the tutor which files a student attached and when', () => {
+  const history = toHistory([{ id: 's', role: 'student', text: 'Quiz me on this.', attachments: ['ch4.pdf', 'board.jpg'] }]);
+  assert.equal(history[0].text, 'Quiz me on this. [Attached: ch4.pdf, board.jpg]');
+  assert.equal(materialOnlyMessage(['ch4.pdf']), 'Help me study the material I attached: ch4.pdf.');
+});
+
+test('history marks files that are no longer attached', () => {
+  const turns = [
+    { id: 'a', role: 'student', text: 'First.', attachments: ['old.png'] },
+    { id: 'b', role: 'student', text: 'Second.', attachments: ['new.png'] },
+  ];
+  const history = toHistory(turns, 'reply', [{ name: 'new.png' }]);
+  assert.equal(history[0].text, 'First. [Attached earlier, now removed or expired and no longer available: old.png]');
+  assert.equal(history[1].text, 'Second. [Attached: new.png]');
+  assert.match(toHistory(turns, 'reply', [])[1].text, /no longer available: new\.png/);
 });

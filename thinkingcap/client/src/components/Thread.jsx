@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import TurnCard from './TurnCard.jsx';
 import { needsStart } from '../sessions.js';
 
-export default function Thread({ turns, busy, requestBusy, onFill, onSendSuggestion, onQuizAnswer, onIntent, onRetry, onNew }) {
+export default function Thread({ turns, busy, requestBusy, onFill, onSendSuggestion, onQuizAnswer, onIntent, onRetry, onNew, findMaterial, onViewMaterial }) {
   const endRef = useRef(null);
   const last = turns.at(-1);
 
@@ -28,6 +28,8 @@ export default function Thread({ turns, busy, requestBusy, onFill, onSendSuggest
             requestBusy={requestBusy}
             onQuizAnswer={onQuizAnswer}
             onRetry={t === last && !requestBusy ? onRetry : undefined}
+            findMaterial={findMaterial}
+            onViewMaterial={onViewMaterial}
           />
         ))}
         {!requestBusy && canContinue && (last?.kind !== 'error' || !last.retry) && (

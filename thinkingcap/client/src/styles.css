@@ -162,6 +162,40 @@ h1 { font-size: var(--fs-h1); font-weight: var(--w-strong); letter-spacing: -0.0
 .composer textarea { width: 100%; border: 0; outline: 0; resize: none; background: transparent; }
 .composer textarea:focus-visible { outline: 0; }
 .composer:focus-within { border-color: var(--ink); }
+.composer.is-dragging { border-color: var(--lav-ink); border-style: dashed; background: var(--lav); }
+
+/* Attached material */
+.staged-files { list-style: none; margin: 0 0 0.5rem; padding: 0; display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.file-chip { display: inline-flex; align-items: center; gap: 0.35rem; max-width: 100%; background: var(--side); border: 1px solid var(--line); border-radius: 10px; padding: 0.25rem 0.3rem 0.25rem 0.55rem; font-size: var(--fs-sm); }
+.file-chip-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 14rem; }
+.file-chip-status { color: var(--muted); font-size: var(--fs-xs); }
+.file-chip.is-error, .file-chip.is-expired { background: var(--bad); border-color: transparent; color: var(--bad-ink); }
+.file-chip.is-error .file-chip-status, .file-chip.is-expired .file-chip-status { color: var(--bad-ink); }
+.file-chip-x { display: grid; place-items: center; width: 1.3rem; height: 1.3rem; border: 0; border-radius: 50%; background: transparent; color: inherit; }
+.file-chip-x:hover { background: var(--line); }
+.session-materials { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
+.session-materials-label { font-size: var(--fs-xs); font-weight: var(--w-medium); color: var(--muted); }
+.material-note { flex-basis: 100%; margin: 0; font-size: var(--fs-xs); color: var(--bad-ink); }
+.student-files { list-style: none; margin: 0.35rem 0 0; padding: 0.35rem 0 0; border-top: 1px solid color-mix(in srgb, var(--bg) 25%, transparent); display: flex; flex-wrap: wrap; gap: 0.25rem 0.75rem; font-size: var(--fs-sm); white-space: normal; }
+.student-files li { display: inline-flex; align-items: center; gap: 0.3rem; }
+.spin { animation: spin 0.9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.file-chip-open { display: inline-flex; align-items: center; gap: 0.35rem; min-width: 0; border: 0; background: transparent; color: inherit; padding: 0; font: inherit; cursor: pointer; }
+.file-chip-open:hover .file-chip-name, .student-file:hover { text-decoration: underline; }
+.student-file { display: inline-flex; align-items: center; gap: 0.3rem; border: 0; background: transparent; color: inherit; padding: 0; font: inherit; cursor: pointer; }
+
+/* File preview dialog */
+.viewer { border: 0; padding: 0; border-radius: 16px; background: var(--card); color: var(--ink); width: min(56rem, calc(100vw - 2rem)); max-height: calc(100vh - 2rem); box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25); }
+.viewer::backdrop { background: rgba(22, 22, 22, 0.55); }
+.viewer-inner { display: flex; flex-direction: column; max-height: calc(100vh - 2rem); }
+.viewer-head { display: flex; align-items: center; gap: 0.6rem; padding: 0.7rem 0.8rem 0.7rem 1.1rem; border-bottom: 1px solid var(--line); }
+.viewer-title { flex: 1; font-weight: var(--w-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.viewer-head .file-chip-status { color: var(--bad-ink); }
+.viewer-body { overflow: auto; padding: 1rem; display: grid; place-items: center; min-height: 12rem; }
+.viewer-body img { max-width: 100%; max-height: calc(100vh - 8rem); object-fit: contain; border-radius: 8px; }
+.viewer-body iframe { width: 100%; height: calc(100vh - 8rem); border: 0; border-radius: 8px; }
+.viewer-body pre { width: 100%; margin: 0; white-space: pre-wrap; word-break: break-word; font-size: var(--fs-sm); }
+.viewer-empty { color: var(--muted); max-width: 32rem; text-align: center; }
 .composer-bar { display: flex; align-items: center; gap: 0.6rem; margin-top: 0.4rem; border-top: 1px solid var(--line); padding-top: 0.6rem; }
 .composer-chips { display: flex; gap: 0.5rem; flex: 1; flex-wrap: wrap; }
 .send-hint { font-size: var(--fs-xs); color: var(--muted); }
